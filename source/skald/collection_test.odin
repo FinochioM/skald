@@ -60,3 +60,32 @@ test_remove_and_reuse :: proc(t: ^testing.T) {
 		}
 	}
 }
+
+@(test)
+test_iterate_skips_removed :: proc(t: ^testing.T) {
+	Thing :: struct {
+		id: int,
+	}
+
+	c := make_collection(Thing)
+	defer destroy_collection(&c)
+
+	a := add(&c, Thing{id = 1})
+	b := add(&c, Thing{id = 2})
+	add(&c, Thing{id = 3})
+	remove(&c, b)
+
+	sum := 0
+	seen := 0
+	it := make_iterator(&c)
+	for thing, h in iterate(&it) {
+		sum += thing.id
+		seen += 1
+
+		testing.expect(t, get(&c, h) == thing)
+	}
+
+	testing.expect_value(t, seen, 2)
+	testing.expect_value(t, sum, 4)
+	testing.expect(t, get(&c, a) != nil)
+}

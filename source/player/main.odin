@@ -1,7 +1,10 @@
 package main
 
+import "core:math/rand"
+
 import "skald:backend_raylib"
 import "skald:platform"
+import "skald:skald"
 
 BACKEND_NAME :: #config(SKALD_BACKEND, "raylib")
 
@@ -21,10 +24,11 @@ Box :: struct {
 }
 
 BOX_SIZE :: 32
+BOX_COUNT :: 300
 ORANGE :: platform.Color{255,161,0,255}
 
 State :: struct {
-	box: Box,
+	boxes: skald.Collection(Box),
 	accumulator: f64,
 }
 
@@ -38,12 +42,14 @@ main :: proc() {
 
 init :: proc() {
 	pf.init(1280, 720, "skald")	
+	
+	state.boxes = skald.make_collection(Box)
 
-	state.box = Box {
-		pos = {100, 100},
-		vel = {240, 180},
+	for _ in 0 ..< BOX_COUNT {
+		pos := [2]f32{rand.float32_range(0, 1200), rand.float32_range(0, 650)}
+		vel := [2]f32{rand.float32_range(-300, 300), rand.float32_range(-300, 300)}
+		skald.add(&state.boxes, Box{pos = pos, prev_pos = pos, vel = vel})
 	}
-	state.box.prev_pos = state.box.pos
 }
 
 step :: proc() -> bool {
@@ -56,18 +62,24 @@ step :: proc() -> bool {
 	state.accumulator = min(state.accumulator, 0.25)
 
 	for state.accumulator >= TICK_DT {
-		tick(&state.box)
+		it := skald.make_iterator(&state.boxes)
+		for box in skald.iterate(&it) {
+			tick(box)
+		}
+
 		state.accumulator -= TICK_DT
 	}
 
 	alpha := f32(state.accumulator / TICK_DT)
-	box := state.box
-	draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
-	
+
 	pf.begin_frame()
 	pf.clear({30, 30, 30, 255})
 
-	pf.draw_rect(draw_pos, BOX_SIZE, ORANGE)
+	it := skald.make_iterator(&state.boxes)
+	for box in skald.iterate(&it) {
+		draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
+		pf.draw_rect(draw_pos, BOX_SIZE, ORANGE)
+	}
 
 	pf.end_frame()
 
@@ -75,6 +87,7 @@ step :: proc() -> bool {
 }
 
 shutdown :: proc() {
+	skald.destroy_collection(&state.boxes)
 	pf.shutdown()
 }
 

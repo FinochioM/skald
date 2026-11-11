@@ -15,6 +15,7 @@ Collection :: struct($T: typeid) {
 Slot :: struct($T: typeid) {
 	value: T,
 	gen: u32,
+	alive: bool,
 }
 
 make_collection :: proc($T: typeid, allocator := context.allocator) -> Collection(T) {
@@ -33,10 +34,11 @@ add :: proc(c: ^Collection($T), value: T) -> Handle(T) {
 		index := pop(&c.free)
 		slot := &c.slots[index]
 		slot.value = value
+		slot.alive = true
 
 		return {index = index, gen = slot.gen}
 	}
-	append(&c.slots, Slot(T){value = value, gen = 1})
+	append(&c.slots, Slot(T){value = value, gen = 1, alive = true})
 	return {index = u32(len(c.slots) - 1), gen = 1}
 }	
 
@@ -60,6 +62,7 @@ remove :: proc(c: ^Collection($T), h: Handle(T)) -> bool {
 
 	slot := &c.slots[h.index]
 	slot.value = {}
+	slot.alive = false
 
 	slot.gen += 1
 	if slot.gen == 0 {
@@ -73,4 +76,27 @@ remove :: proc(c: ^Collection($T), h: Handle(T)) -> bool {
 
 count :: proc(c: ^Collection($T)) -> int {
 	return len(c.slots) - len(c.free)
+}
+
+Iterator :: struct($T: typeid) {
+	c: ^Collection(T),
+	index: int,
+}
+
+make_iterator :: proc(c: ^Collection($T)) -> Iterator(T) {
+	return {c=c}
+}
+
+iterate :: proc(it: ^Iterator($T)) -> (value: ^T, h: Handle(T), ok: bool) {
+	for it.index < len(it.c.slots) {
+		i := it.index
+		it.index += 1
+
+		slot := &it.c.slots[i]
+		if slot.alive {
+			return &slot.value, {index = u32(i), gen = slot.gen}, true
+		}
+	}
+
+	return
 }
