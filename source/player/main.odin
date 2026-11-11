@@ -3,6 +3,7 @@ package main
 import "core:math/rand"
 
 import "skald:backend_raylib"
+import "skald:backend_nil"
 import "skald:platform"
 import "skald:skald"
 
@@ -10,6 +11,10 @@ BACKEND_NAME :: #config(SKALD_BACKEND, "raylib")
 
 when BACKEND_NAME == "raylib" {
 	pf :: backend_raylib.BACKEND
+	_ :: backend_nil
+} else when BACKEND_NAME == "nil" {
+	pf :: backend_nil.BACKEND
+	_ :: backend_raylib
 } else {
 	#panic("unknown SKALD_BACKEND: " + BACKEND_NAME)
 }

@@ -10,3 +10,13 @@ for p in skald scene reload platform; do
   fi
 done
 [ $ran -eq 1 ] || echo "no testable code yet, skipping"
+
+if ls source/player/*.odin >/dev/null 2>&1; then
+  echo "== smoke source/player (nil backend)"
+  ext=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ext=".exe";; esac
+  mkdir -p build/test
+  odin build source/player -out:"build/test/skald_player_nil$ext" -debug -vet \
+    -collection:skald=source -define:SKALD_BACKEND=nil
+  "./build/test/skald_player_nil$ext"
+  echo "player ran headless ok"
+fi
