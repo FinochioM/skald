@@ -17,6 +17,7 @@ BACKEND :: platform.Interface {
 }
 
 init :: proc(width, height: int, title: string) {
+	rl.SetTraceLogLevel(.WARNING)
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 
 	rl.InitWindow(i32(width), i32(height), cstr(title))
