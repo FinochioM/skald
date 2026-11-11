@@ -28,6 +28,7 @@ BOX_COUNT :: 300
 ORANGE :: platform.Color{255,161,0,255}
 
 State :: struct {
+	level: skald.Level,
 	boxes: skald.Collection(Box),
 	accumulator: f64,
 }
@@ -43,7 +44,8 @@ main :: proc() {
 init :: proc() {
 	pf.init(1280, 720, "skald")	
 	
-	state.boxes = skald.make_collection(Box)
+	skald.level_init(&state.level)
+	state.boxes = skald.make_collection(Box, state.level.allocator)
 
 	for _ in 0 ..< BOX_COUNT {
 		pos := [2]f32{rand.float32_range(0, 1200), rand.float32_range(0, 650)}
@@ -83,11 +85,13 @@ step :: proc() -> bool {
 
 	pf.end_frame()
 
+	free_all(context.temp_allocator)
+
 	return true
 }
 
 shutdown :: proc() {
-	skald.destroy_collection(&state.boxes)
+	skald.level_destroy(&state.level)
 	pf.shutdown()
 }
 
