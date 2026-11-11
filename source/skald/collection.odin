@@ -7,6 +7,8 @@ Handle :: struct($T: typeid) {
 
 Collection :: struct($T: typeid) {
 	slots: [dynamic]Slot(T),
+
+	free: [dynamic]u32,
 }
 
 @(private)
@@ -16,18 +18,27 @@ Slot :: struct($T: typeid) {
 }
 
 make_collection :: proc($T: typeid, allocator := context.allocator) -> Collection(T) {
-	return {slots = make([dynamic]Slot(T), allocator)}
+	return {slots = make([dynamic]Slot(T), allocator),
+		free = make([dynamic]u32, allocator),
+	}
 }
 
 destroy_collection :: proc(c: ^Collection($T)) {
 	delete(c.slots)
+	delete(c.free)
 }
 
 add :: proc(c: ^Collection($T), value: T) -> Handle(T) {
+	if len (c.free) > 0 {
+		index := pop(&c.free)
+		slot := &c.slots[index]
+		slot.value = value
+
+		return {index = index, gen = slot.gen}
+	}
 	append(&c.slots, Slot(T){value = value, gen = 1})
-	// todo reuse removed slots
 	return {index = u32(len(c.slots) - 1), gen = 1}
-}
+}	
 
 get :: proc(c: ^Collection($T), h: Handle(T)) -> ^T {
 	if int(h.index) >= len(c.slots) {
@@ -40,4 +51,26 @@ get :: proc(c: ^Collection($T), h: Handle(T)) -> ^T {
 	}
 
 	return &slot.value
+}
+
+remove :: proc(c: ^Collection($T), h: Handle(T)) -> bool {
+	if get(c, h) == nil {
+		return false
+	}
+
+	slot := &c.slots[h.index]
+	slot.value = {}
+
+	slot.gen += 1
+	if slot.gen == 0 {
+		slot.gen = 1
+	}
+
+	append(&c.free, h.index)
+
+	return true
+}
+
+count :: proc(c: ^Collection($T)) -> int {
+	return len(c.slots) - len(c.free)
 }
