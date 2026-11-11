@@ -13,41 +13,61 @@ Box :: struct {
 
 BOX_SIZE :: 32
 
+State :: struct {
+	box: Box,
+	accumulator: f64,
+}
+
+state: State
+
 main :: proc() {
+	init()
+	for step() {}
+	shutdown()
+}
+
+init :: proc() {
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(1280, 720, "skald")
 
-	defer rl.CloseWindow()
-
-	box := Box {
+	state.box = Box {
 		pos = {100, 100},
 		vel = {240, 180},
 	}
-	box.prev_pos = box.pos
+	state.box.prev_pos = state.box.pos
+}
 
-	accumulator: f64
-
-	for !rl.WindowShouldClose() {
-		accumulator += f64(rl.GetFrameTime())
-
-		accumulator = min(accumulator, 0.25)
-
-		for accumulator >= TICK_DT {
-			tick(&box)
-			accumulator -= TICK_DT
-		}
-
-		alpha := f32(accumulator / TICK_DT)
-		draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
-
-		rl.BeginDrawing()
-		rl.ClearBackground({30, 30, 30, 255})
-
-		rl.DrawRectangleV(draw_pos, BOX_SIZE, rl.ORANGE)
-		rl.DrawFPS(20, 20)
-
-		rl.EndDrawing()
+step :: proc() -> bool {
+	if rl.WindowShouldClose() {
+		return false
 	}
+
+
+	state.accumulator += f64(rl.GetFrameTime())
+	state.accumulator = min(state.accumulator, 0.25)
+
+	for state.accumulator >= TICK_DT {
+		tick(&state.box)
+		state.accumulator -= TICK_DT
+	}
+
+	alpha := f32(state.accumulator / TICK_DT)
+	box := state.box
+	draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
+
+	rl.BeginDrawing()
+	rl.ClearBackground({30, 30, 30, 255})
+
+	rl.DrawRectangleV(draw_pos, BOX_SIZE, rl.ORANGE)
+	rl.DrawFPS(20, 20)
+
+	rl.EndDrawing()
+
+	return true
+}
+
+shutdown :: proc() {
+	rl.CloseWindow()
 }
 
 tick :: proc(b: ^Box) {
