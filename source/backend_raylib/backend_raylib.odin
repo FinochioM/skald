@@ -15,6 +15,7 @@ BACKEND :: platform.Interface {
 	end_frame = end_frame,
 	clear = clear,
 	draw_rect = draw_rect,
+	draw_text = draw_text,
 }
 
 init :: proc(width, height: int, title: string) {
@@ -54,6 +55,10 @@ clear :: proc(color: platform.Color) {
 
 draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {
 	rl.DrawRectangleV(pos, size, rl.Color(color))
+}
+
+draw_text :: proc(text: string, pos: [2]f32, size: f32, color: platform.Color) {
+	rl.DrawText(cstr(text), i32(pos.x), i32(pos.y), i32(size), rl.Color(color))
 }
 
 @(private)

@@ -15,6 +15,7 @@ BACKEND :: platform.Interface {
 	end_frame    = end_frame,
 	clear        = clear,
 	draw_rect    = draw_rect,
+	draw_text    = draw_text,
 }
 
 @(private)
@@ -51,3 +52,4 @@ end_frame :: proc() {
 clear :: proc(color: platform.Color) {}
 
 draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {}
+draw_text :: proc(text: string, pos: [2]f32, size: f32, color: platform.Color) {}

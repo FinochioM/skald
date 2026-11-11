@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:math/rand"
 
 import "skald:backend_raylib"
@@ -45,6 +46,7 @@ State :: struct {
 	boxes: skald.Collection(Box),
 	accumulator: f64,
 	input: skald.Input,
+	fps: f64,
 }
 
 state: State
@@ -68,7 +70,13 @@ step :: proc() -> bool {
 
 	skald.input_update(&state.input, pf.keys_down())
 
-	state.accumulator += f64(pf.frame_time())
+	dt := pf.frame_time()
+
+	if dt > 0 {
+		state.fps = state.fps * 0.95 + (1 / dt) * 0.05
+	}
+
+	state.accumulator += dt
 	state.accumulator = min(state.accumulator, 0.25)
 
 	for state.accumulator >= TICK_DT {
@@ -97,6 +105,8 @@ step :: proc() -> bool {
 		draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
 		pf.draw_rect(draw_pos, BOX_SIZE, ORANGE)
 	}
+
+	pf.draw_text(fmt.tprintf("%.0f fps", state.fps), {20, 20}, 20, {255, 255, 255, 255})
 
 	pf.end_frame()
 
