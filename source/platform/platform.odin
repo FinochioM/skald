@@ -9,6 +9,7 @@ Interface :: struct #all_or_none {
 	should_close: proc() -> bool,
 
 	frame_time: proc() -> f64,
+	keys_down: proc() -> Key_Set,
 	screen_size: proc() -> [2]int,
 
 	begin_frame: proc(),

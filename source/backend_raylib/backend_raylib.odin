@@ -9,6 +9,7 @@ BACKEND :: platform.Interface {
 	shutdown = shutdown,
 	should_close = should_close,
 	frame_time = frame_time,
+	keys_down = keys_down,
 	screen_size = screen_size,
 	begin_frame = begin_frame,
 	end_frame = end_frame,
@@ -58,4 +59,28 @@ draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {
 @(private)
 cstr :: proc(s: string) -> cstring {
 	return strings.clone_to_cstring(s, context.temp_allocator)
+}
+
+keys_down :: proc() -> platform.Key_Set {
+	down: platform.Key_Set
+	for rk, k in KEY_MAP {
+		if rl.IsKeyDown(rk) {
+			down += {k}
+		}
+	}
+
+	return down
+}
+
+@(private)
+KEY_MAP := [platform.Key]rl.KeyboardKey {
+	.A = .A, .B = .B, .C = .C, .D = .D, .E = .E, .F = .F, .G = .G,
+	.H = .H, .I = .I, .J = .J, .K = .K, .L = .L, .M = .M, .N = .N,
+	.O = .O, .P = .P, .Q = .Q, .R = .R, .S = .S, .T = .T, .U = .U,
+	.V = .V, .W = .W, .X = .X, .Y = .Y, .Z = .Z,
+	.Num_0 = .ZERO, .Num_1 = .ONE, .Num_2 = .TWO, .Num_3 = .THREE, .Num_4 = .FOUR,
+	.Num_5 = .FIVE, .Num_6 = .SIX, .Num_7 = .SEVEN, .Num_8 = .EIGHT, .Num_9 = .NINE,
+	.Up = .UP, .Down = .DOWN, .Left = .LEFT, .Right = .RIGHT,
+	.Space = .SPACE, .Enter = .ENTER, .Escape = .ESCAPE, .Tab = .TAB, .Backspace = .BACKSPACE,
+	.Left_Shift = .LEFT_SHIFT, .Left_Control = .LEFT_CONTROL, .Left_Alt = .LEFT_ALT,
 }

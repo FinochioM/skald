@@ -27,10 +27,19 @@ BOX_SIZE :: 32
 BOX_COUNT :: 300
 ORANGE :: platform.Color{255,161,0,255}
 
+Action :: enum {
+	Restart,
+}
+
+BINDINGS := [Action]skald.Binding {
+	.Restart = {.R},
+}
+
 State :: struct {
 	level: skald.Level,
 	boxes: skald.Collection(Box),
 	accumulator: f64,
+	input: skald.Input,
 }
 
 state: State
@@ -44,14 +53,7 @@ main :: proc() {
 init :: proc() {
 	pf.init(1280, 720, "skald")	
 	
-	skald.level_init(&state.level)
-	state.boxes = skald.make_collection(Box, state.level.allocator)
-
-	for _ in 0 ..< BOX_COUNT {
-		pos := [2]f32{rand.float32_range(0, 1200), rand.float32_range(0, 650)}
-		vel := [2]f32{rand.float32_range(-300, 300), rand.float32_range(-300, 300)}
-		skald.add(&state.boxes, Box{pos = pos, prev_pos = pos, vel = vel})
-	}
+	load_level()
 }
 
 step :: proc() -> bool {
@@ -59,15 +61,23 @@ step :: proc() -> bool {
 		return false
 	}
 
+	skald.input_update(&state.input, pf.keys_down())
 
 	state.accumulator += f64(pf.frame_time())
 	state.accumulator = min(state.accumulator, 0.25)
 
 	for state.accumulator >= TICK_DT {
+		if skald.action_pressed(state.input, BINDINGS, .Restart) {
+			unload_level()
+			load_level()
+		}
+
 		it := skald.make_iterator(&state.boxes)
 		for box in skald.iterate(&it) {
 			tick(box)
 		}
+
+		skald.input_consume(&state.input)
 
 		state.accumulator -= TICK_DT
 	}
@@ -91,7 +101,7 @@ step :: proc() -> bool {
 }
 
 shutdown :: proc() {
-	skald.level_destroy(&state.level)
+	unload_level()
 	pf.shutdown()
 }
 
@@ -112,4 +122,20 @@ tick :: proc(b: ^Box) {
 		b.vel.y = -b.vel.y
 		b.pos.y = clamp(b.pos.y, 0, h)
 	}
+}
+
+load_level :: proc() {
+	skald.level_init(&state.level)
+	state.boxes = skald.make_collection(Box, state.level.allocator)
+
+	for _ in 0 ..< BOX_COUNT {
+		pos := [2]f32{rand.float32_range(0, 1200), rand.float32_range(0, 650)}
+		vel := [2]f32{rand.float32_range(-300, 300), rand.float32_range(-300, 300)}
+		skald.add(&state.boxes, Box{pos = pos, prev_pos = pos, vel = vel})
+	}
+}
+
+unload_level :: proc() {
+	skald.level_destroy(&state.level)
+	state.boxes = {}
 }
