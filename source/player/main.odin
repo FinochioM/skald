@@ -1,6 +1,15 @@
 package main
 
-import rl "vendor:raylib"
+import "skald:backend_raylib"
+import "skald:platform"
+
+BACKEND_NAME :: #config(SKALD_BACKEND, "raylib")
+
+when BACKEND_NAME == "raylib" {
+	pf :: backend_raylib.BACKEND
+} else {
+	#panic("unknown SKALD_BACKEND: " + BACKEND_NAME)
+}
 
 TICK_RATE :: 60
 TICK_DT :: 1.0 / TICK_RATE
@@ -12,6 +21,7 @@ Box :: struct {
 }
 
 BOX_SIZE :: 32
+ORANGE :: platform.Color{255,161,0,255}
 
 State :: struct {
 	box: Box,
@@ -27,8 +37,7 @@ main :: proc() {
 }
 
 init :: proc() {
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1280, 720, "skald")
+	pf.init(1280, 720, "skald")	
 
 	state.box = Box {
 		pos = {100, 100},
@@ -38,12 +47,12 @@ init :: proc() {
 }
 
 step :: proc() -> bool {
-	if rl.WindowShouldClose() {
+	if pf.should_close() {
 		return false
 	}
 
 
-	state.accumulator += f64(rl.GetFrameTime())
+	state.accumulator += f64(pf.frame_time())
 	state.accumulator = min(state.accumulator, 0.25)
 
 	for state.accumulator >= TICK_DT {
@@ -54,28 +63,28 @@ step :: proc() -> bool {
 	alpha := f32(state.accumulator / TICK_DT)
 	box := state.box
 	draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
+	
+	pf.begin_frame()
+	pf.clear({30, 30, 30, 255})
 
-	rl.BeginDrawing()
-	rl.ClearBackground({30, 30, 30, 255})
+	pf.draw_rect(draw_pos, BOX_SIZE, ORANGE)
 
-	rl.DrawRectangleV(draw_pos, BOX_SIZE, rl.ORANGE)
-	rl.DrawFPS(20, 20)
-
-	rl.EndDrawing()
+	pf.end_frame()
 
 	return true
 }
 
 shutdown :: proc() {
-	rl.CloseWindow()
+	pf.shutdown()
 }
 
 tick :: proc(b: ^Box) {
 	b.prev_pos = b.pos
 	b.pos += b.vel * TICK_DT
-
-	w := f32(rl.GetScreenWidth()) - BOX_SIZE
-	h := f32(rl.GetScreenHeight()) - BOX_SIZE
+	
+	screen := pf.screen_size()
+	w := f32(screen.x) - BOX_SIZE
+	h := f32(screen.y) - BOX_SIZE
 
 	if b.pos.x < 0 || b.pos.x > w {
 		b.vel.x = -b.vel.x
