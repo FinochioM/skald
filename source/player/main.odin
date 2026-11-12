@@ -2,6 +2,8 @@ package main
 
 import "core:fmt"
 import "core:math/rand"
+import "core:os"
+import "core:strings"
 
 import "skald:backend_raylib"
 import "skald:backend_nil"
@@ -25,7 +27,7 @@ TICK_DT :: 1.0 / TICK_RATE
 
 Box :: struct {
 	pos: [2]f32,
-	prev_pos: [2]f32,
+  	prev_pos: [2]f32 `scene:"-"`,
 	vel: [2]f32,
 }
 
@@ -35,11 +37,16 @@ ORANGE :: platform.Color{255,161,0,255}
 
 Action :: enum {
 	Restart,
+	Save,
 }
 
 BINDINGS := [Action]skald.Binding {
 	.Restart = {.R},
+	.Save = {.S},
 }
+
+LEVEL_DIR :: "examples/boxes"
+LEVEL_PATH :: LEVEL_DIR + "/boxes.level"
 
 State :: struct {
 	level: skald.Level,
@@ -84,6 +91,10 @@ step :: proc() -> bool {
 			unload_level()
 			load_level()
 		}
+
+  		if skald.action_pressed(state.input, BINDINGS, .Save) {
+  			save_level()
+  		}
 
 		it := skald.make_iterator(&state.boxes)
 		for box in skald.iterate(&it) {
@@ -139,14 +150,42 @@ tick :: proc(b: ^Box) {
 	}
 }
 
-load_level :: proc() {
-	skald.level_init(&state.level)
-	state.boxes = skald.make_collection(Box, state.level.allocator)
-
+random_boxes :: proc() {
 	for _ in 0 ..< BOX_COUNT {
 		pos := [2]f32{rand.float32_range(0, 1200), rand.float32_range(0, 650)}
 		vel := [2]f32{rand.float32_range(-300, 300), rand.float32_range(-300, 300)}
 		skald.add(&state.boxes, Box{pos = pos, prev_pos = pos, vel = vel})
+	}
+}
+
+load_level :: proc() {
+	skald.level_init(&state.level)
+	state.boxes = skald.make_collection(Box, state.level.allocator)
+
+	data, err := os.read_entire_file(LEVEL_PATH, context.temp_allocator)
+	if err != nil {
+		random_boxes()
+		save_level()
+		return
+	}
+
+	if !skald.load_collection(&state.boxes, string(data), Box{}, state.level.allocator) {
+		fmt.eprintln("bad level file:", LEVEL_PATH)
+	}
+
+	it := skald.make_iterator(&state.boxes)
+	for box in skald.iterate(&it) {
+		box.prev_pos = box.pos
+	}
+}
+
+save_level :: proc() {
+	sb := strings.builder_make(context.temp_allocator)
+	skald.save_collection(&sb, &state.boxes, Box{})
+
+	_ = os.make_directory_all(LEVEL_DIR)
+	if err := os.write_entire_file(LEVEL_PATH, strings.to_string(sb)); err != nil {
+		fmt.eprintln("could not save", LEVEL_PATH, err)
 	}
 }
 

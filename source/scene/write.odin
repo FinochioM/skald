@@ -7,6 +7,10 @@ import "core:mem"
 
 write_struct :: proc(sb: ^strings.Builder, v: any, defaults: any = nil, indent := "") {
 	for field in reflect.struct_fields_zipped(v.id) {
+		if reflect.struct_tag_get(field.tag, "scene") == "-" {
+			continue
+		}
+
 		value := reflect.struct_field_value(v, field)
 		if defaults != nil && values_equal(value, reflect.struct_field_value(defaults, field)) {
 			continue
