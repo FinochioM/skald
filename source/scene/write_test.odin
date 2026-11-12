@@ -65,3 +65,28 @@ test_round_trip :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, strings.to_string(second), strings.to_string(first))
 }
+
+@(test)
+test_skip_defaults :: proc(t: ^testing.T) {
+	Enemy :: struct {
+		hp: int,
+		speed: f32,
+		pos: [2]f32,
+		name: string,
+	}
+
+	DEFAULT :: Enemy{hp = 3, speed = 1, name = "slime"}
+
+	e := DEFAULT
+	e.pos = {10, 20}
+
+	sb := strings.builder_make()
+	defer strings.builder_destroy(&sb)
+
+	write_struct(&sb, e, DEFAULT)
+	testing.expect_value(t, strings.to_string(sb), "pos = 10 20\n")
+
+	back := DEFAULT
+	testing.expect(t, read_struct(strings.to_string(sb), &back, Enemy))
+	testing.expect_value(t, back, e)
+}
