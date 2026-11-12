@@ -32,6 +32,26 @@ read_struct :: proc(text: string, ptr: rawptr, id: typeid, allocator := context.
 	return true
 }
 
+next_item :: proc(text: ^string) -> (type_name: string, id: u64, body: string, ok: bool) {
+	header: string
+	for header == "" {
+		line := strings.split_lines_iterator(text) or_return
+		header = strings.trim_space(line)
+	}
+
+	name, _, hex := strings.partition(header, " ")
+	type_name = name
+	id = strconv.parse_u64_of_base(hex, 16) or_return
+
+	start := text^
+	for len(text) > 0 && (text[0] == ' ' || text[0] == '\t' || text[0] == '\n' || text[0] == '\r') {
+		_, _ = strings.split_lines_iterator(text)
+	}
+	body = start[:len(start) - len(text)]
+
+	return type_name, id, body, true
+}
+
 read_value :: proc(s: string, v: any, allocator := context.allocator) -> bool {
 	ti := reflect.type_info_base(type_info_of(v.id))
 

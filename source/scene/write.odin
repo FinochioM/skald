@@ -5,17 +5,22 @@ import "core:reflect"
 import "core:strings"
 import "core:mem"
 
-write_struct :: proc(sb: ^strings.Builder, v: any, defaults: any = nil) {
+write_struct :: proc(sb: ^strings.Builder, v: any, defaults: any = nil, indent := "") {
 	for field in reflect.struct_fields_zipped(v.id) {
 		value := reflect.struct_field_value(v, field)
 		if defaults != nil && values_equal(value, reflect.struct_field_value(defaults, field)) {
 			continue
 		}
 
-		fmt.sbprintf(sb, "%s = ", field.name)
+		fmt.sbprintf(sb, "%s%s = ", indent, field.name)
 		write_value(sb, value)
 		strings.write_byte(sb, '\n')
 	}
+}
+
+write_item :: proc(sb: ^strings.Builder, id: u64, v: any, defaults: any = nil) {
+	fmt.sbprintf(sb, "%v %016x\n", v.id, id)
+	write_struct(sb, v, defaults, "  ")
 }
 
 write_value :: proc(sb: ^strings.Builder, v: any) {
