@@ -1,5 +1,7 @@
 package skald
 
+import "core:math/rand"
+
 Handle :: struct($T: typeid) {
 	index: u32,
 	gen: u32,
@@ -16,6 +18,7 @@ Slot :: struct($T: typeid) {
 	value: T,
 	gen: u32,
 	alive: bool,
+	id: u64,
 }
 
 make_collection :: proc($T: typeid, allocator := context.allocator) -> Collection(T) {
@@ -29,18 +32,25 @@ destroy_collection :: proc(c: ^Collection($T)) {
 	delete(c.free)
 }
 
-add :: proc(c: ^Collection($T), value: T) -> Handle(T) {
+add :: proc(c: ^Collection($T), value: T, id: u64 = 0) -> Handle(T) {
+	id := id
+	for id == 0 {
+		id = rand.uint64()
+	}
+
 	if len (c.free) > 0 {
 		index := pop(&c.free)
 		slot := &c.slots[index]
 		slot.value = value
 		slot.alive = true
+		slot.id = id
 
 		return {index = index, gen = slot.gen}
 	}
-	append(&c.slots, Slot(T){value = value, gen = 1, alive = true})
+
+	append(&c.slots, Slot(T){value = value, gen = 1, alive = true, id = id})
 	return {index = u32(len(c.slots) - 1), gen = 1}
-}	
+}
 
 get :: proc(c: ^Collection($T), h: Handle(T)) -> ^T {
 	if int(h.index) >= len(c.slots) {
