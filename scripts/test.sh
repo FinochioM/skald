@@ -15,8 +15,9 @@ if ls source/player/*.odin >/dev/null 2>&1; then
   echo "== smoke source/player (nil backend)"
   ext=""; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ext=".exe";; esac
   mkdir -p build/test
+  bash scripts/build_game.sh boxes test
   odin build source/player -out:"build/test/skald_player_nil$ext" -debug -vet \
-    -collection:skald=source -define:SKALD_BACKEND=nil
+      -collection:skald=source -define:SKALD_BACKEND=nil -define:SKALD_GAME=build/test/games/boxes
   "./build/test/skald_player_nil$ext"
   echo "player ran headless ok"
 fi
