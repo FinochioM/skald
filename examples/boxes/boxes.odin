@@ -18,7 +18,7 @@ Box :: struct {
 
 BOX_SIZE :: 32
 BOX_COUNT :: 300
-ORANGE :: skald.Color{255,161,0,255}
+ORANGE :: skald.Color{25,161,0,255}
 
 Action :: enum {
 	Restart,
@@ -109,6 +109,16 @@ game_step :: proc() {
 game_shutdown :: proc() {
 	unload_level()
 	free(state)
+}
+
+@(export)
+game_memory :: proc() -> rawptr {
+	return state
+}
+
+@(export)
+game_hot_reloaded :: proc(mem: rawptr) {
+	state = (^State)(mem)
 }
 
 tick :: proc(b: ^Box) {

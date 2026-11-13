@@ -12,5 +12,6 @@ out="build/$mode/games"
 mkdir -p "$out"
 ext=".so"; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ext=".dll";; Darwin) ext=".dylib";; esac
 flags="-debug -vet"; [ "$mode" = release ] && flags="-o:speed -vet"
-odin build "$game" -build-mode:dll -out:"$out/$name$ext" $flags -collection:skald=source
+odin build "$game" -build-mode:dll -out:"$out/$name.tmp$ext" $flags -collection:skald=source
+mv -f "$out/$name.tmp$ext" "$out/$name$ext"
 echo "built $out/$name$ext"
