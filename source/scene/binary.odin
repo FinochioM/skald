@@ -57,7 +57,7 @@ read_binary_struct :: proc(data: []byte, ptr: rawptr, id: typeid, allocator := c
 		value := rest[:size]
 		rest = rest[size:]
 
-		field := reflect.struct_field_by_name(id, name)
+		field := find_field(id, name)
 		if field.type == nil || reflect.struct_tag_get(field.tag, "scene") == "-" {
 			continue
 		}

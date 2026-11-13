@@ -18,7 +18,7 @@ read_struct :: proc(text: string, ptr: rawptr, id: typeid, allocator := context.
 			return false
 		}
 
-		field := reflect.struct_field_by_name(id, name)
+		field := find_field(id, name)
 		if field.type == nil {
 			continue
 		}
@@ -96,4 +96,17 @@ read_value :: proc(s: string, v: any, allocator := context.allocator) -> bool {
 	}
 
 	return true
+}
+
+find_field :: proc(id: typeid, name: string) -> reflect.Struct_Field {
+	if field := reflect.struct_field_by_name(id, name); field.type != nil {
+		return field
+	}
+	for i in 0 ..< reflect.struct_field_count(id) {
+		field := reflect.struct_field_at(id, i)
+		if reflect.struct_tag_get(field.tag, "was") == name {
+			return field
+		}
+	}
+	return {}
 }
