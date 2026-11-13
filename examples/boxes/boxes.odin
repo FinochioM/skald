@@ -18,7 +18,7 @@ Box :: struct {
 
 BOX_SIZE :: 32
 BOX_COUNT :: 300
-ORANGE :: skald.Color{25,161,0,255}
+ORANGE :: skald.Color{123,161,0,255}
 
 Action :: enum {
 	Restart,
