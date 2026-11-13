@@ -1,5 +1,6 @@
 package boxes
 
+import "base:runtime"
 import "core:fmt"
 import "core:math/rand"
 import "core:os"
@@ -14,6 +15,7 @@ Box :: struct {
 	pos: [2]f32,
   	prev_pos: [2]f32 `scene:"-"`,
 	vel: [2]f32,
+	spin: f32,
 }
 
 BOX_SIZE :: 32
@@ -35,7 +37,7 @@ LEVEL_PATH :: LEVEL_DIR + "/boxes.level"
 
 State :: struct {
 	pf: ^skald.Platform,
-	level: skald.Level,
+	level: ^skald.Level,
 	boxes: skald.Collection(Box),
 	accumulator: f64,
 	input: skald.Input,
@@ -48,6 +50,8 @@ state: ^State
 game_init :: proc(pf: ^skald.Platform) {
 	state = new(State)
 	state.pf = pf
+
+	state.level = new(skald.Level)
 
 	load_level()
 }
@@ -95,7 +99,7 @@ game_step :: proc() {
 	it := skald.make_iterator(&state.boxes)
 	for box in skald.iterate(&it) {
 		draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
-		pf.draw_rect(draw_pos, BOX_SIZE, ORANGE)
+		pf.draw_rect(draw_pos, BOX_SIZE + box.spin * 0.1, ORANGE)
 	}
 
 	pf.draw_text(fmt.tprintf("%.0f fps", state.fps), {20, 20}, 20, {255, 255, 255, 255})
@@ -108,12 +112,19 @@ game_step :: proc() {
 @(export)
 game_shutdown :: proc() {
 	unload_level()
+
+	free(state.level)
 	free(state)
 }
 
 @(export)
 game_memory :: proc() -> rawptr {
 	return state
+}
+
+@(export)
+game_memory_type :: proc() -> ^runtime.Type_Info {
+	return type_info_of(State)
 }
 
 @(export)
@@ -124,6 +135,7 @@ game_hot_reloaded :: proc(mem: rawptr) {
 tick :: proc(b: ^Box) {
 	b.prev_pos = b.pos
 	b.pos += b.vel * TICK_DT
+	b.spin += 1
 	
 	screen := state.pf.screen_size()
 	w := f32(screen.x) - BOX_SIZE
@@ -149,7 +161,7 @@ random_boxes :: proc() {
 }
 
 load_level :: proc() {
-	skald.level_init(&state.level)
+	skald.level_init(state.level)
 	state.boxes = skald.make_collection(Box, state.level.allocator)
 
 	data, err := os.read_entire_file(LEVEL_PATH, context.temp_allocator)
@@ -180,6 +192,6 @@ save_level :: proc() {
 }
 
 unload_level :: proc() {
-	skald.level_destroy(&state.level)
+	skald.level_destroy(state.level)
 	state.boxes = {}
 }

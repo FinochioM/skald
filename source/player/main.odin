@@ -3,12 +3,15 @@ package main
 import "core:fmt"
 import "core:dynlib"
 import "core:os"
+import "core:mem"
 import "core:time"
 import "core:strings"
+import "base:runtime"
 
 import "skald:backend_raylib"
 import "skald:backend_nil"
 import "skald:platform"
+import "skald:reload"
 
 BACKEND_NAME :: #config(SKALD_BACKEND, "raylib")
 
@@ -38,6 +41,7 @@ Game_API :: struct {
 	step: proc(),
 	shutdown: proc(),
 	memory: proc() -> rawptr,
+	memory_type: proc() -> ^runtime.Type_Info,
   	hot_reloaded: proc(mem: rawptr),
 
 	__handle: dynlib.Library,
@@ -135,11 +139,26 @@ reload_game :: proc() {
   		return
   	}
 
-  	mem := game.memory()
+  	memory := game.memory()
+  	old_type := game.memory_type()
+  	new_type := new_game.memory_type()
+
+  	if reload.layout_hash(new_type) != reload.layout_hash(old_type) {
+  		moved, err := mem.alloc(new_type.size, new_type.align)
+  		if err != nil {
+  			fmt.eprintln("could not allocate the new state:", err)
+  			unload_game(new_game)
+  			return
+  		}
+  		reload.migrate(moved, new_type, memory, old_type)
+  		free(memory)
+  		memory = moved
+  		fmt.println("state layout changed, moved it over by field name")
+  	}
 
   	append(&old_games, game)
   	game = new_game
-  	game.hot_reloaded(mem)
+  	game.hot_reloaded(memory)
 
   	fmt.println("reloaded game, version", game.version)
 }
