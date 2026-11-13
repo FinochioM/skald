@@ -11,6 +11,10 @@ BACKEND :: platform.Interface {
 	frame_time = frame_time,
 	keys_down = keys_down,
 	screen_size = screen_size,
+	mouse_position = mouse_position,
+	mouse_down = mouse_down,
+	mouse_wheel = mouse_wheel,
+	text_input = text_input,
 	begin_frame = begin_frame,
 	end_frame = end_frame,
 	clear = clear,
@@ -88,4 +92,37 @@ KEY_MAP := [platform.Key]rl.KeyboardKey {
 	.Up = .UP, .Down = .DOWN, .Left = .LEFT, .Right = .RIGHT,
 	.Space = .SPACE, .Enter = .ENTER, .Escape = .ESCAPE, .Tab = .TAB, .Backspace = .BACKSPACE,
 	.Left_Shift = .LEFT_SHIFT, .Left_Control = .LEFT_CONTROL, .Left_Alt = .LEFT_ALT,
+}
+
+mouse_position :: proc() -> [2]f32 {
+	return rl.GetMousePosition()
+}
+
+mouse_down :: proc() -> platform.Mouse_Buttons {
+	down: platform.Mouse_Buttons
+	for rb, b in MOUSE_MAP {
+		if rl.IsMouseButtonDown(rb) {
+			down += {b}
+		}
+	}
+
+	return down
+}
+
+mouse_wheel :: proc() -> [2]f32 {
+	return rl.GetMouseWheelMoveV()
+}
+
+text_input :: proc() -> string {
+	sb := strings.builder_make(context.temp_allocator)
+	for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
+		strings.write_rune(&sb, r)
+	}
+
+	return strings.to_string(sb)
+}
+
+@(private)
+MOUSE_MAP := [platform.Mouse_Button]rl.MouseButton {
+	.Left = .LEFT, .Right = .RIGHT, .Middle = .MIDDLE,
 }

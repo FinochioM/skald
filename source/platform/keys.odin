@@ -10,3 +10,11 @@ Key :: enum u8 {
 }
 
 Key_Set :: bit_set[Key]
+
+Mouse_Button :: enum u8 {
+	Left,
+	Right,
+	Middle,
+}
+
+Mouse_Buttons :: bit_set[Mouse_Button]

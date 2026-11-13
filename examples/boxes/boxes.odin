@@ -102,6 +102,19 @@ game_step :: proc() {
 		pf.draw_rect(draw_pos, BOX_SIZE + box.spin * 0.1, ORANGE)
 	}
 
+	cursor_color := skald.Color{255, 255, 255, 255}
+	if .Left in pf.mouse_down() {
+		cursor_color = {255, 80, 80, 255}
+	}
+	pf.draw_rect(pf.mouse_position() - 4, 8, cursor_color)
+
+	if text := pf.text_input(); text != "" {
+		fmt.print(text)
+	}
+	if wheel := pf.mouse_wheel(); wheel != 0 {
+		fmt.println("wheel", wheel)
+	}
+
 	pf.draw_text(fmt.tprintf("%.0f fps", state.fps), {20, 20}, 20, {255, 255, 255, 255})
 
 	pf.end_frame()

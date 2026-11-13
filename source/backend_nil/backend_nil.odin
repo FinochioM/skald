@@ -11,6 +11,10 @@ BACKEND :: platform.Interface {
 	frame_time   = frame_time,
 	keys_down    = keys_down,
 	screen_size  = screen_size,
+	mouse_position = mouse_position,
+	mouse_down = mouse_down,
+	mouse_wheel = mouse_wheel,
+	text_input = text_input,
 	begin_frame  = begin_frame,
 	end_frame    = end_frame,
 	clear        = clear,
@@ -53,3 +57,19 @@ clear :: proc(color: platform.Color) {}
 
 draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {}
 draw_text :: proc(text: string, pos: [2]f32, size: f32, color: platform.Color) {}
+
+mouse_position :: proc() -> [2]f32 {
+	return {}
+}
+
+mouse_down :: proc() -> platform.Mouse_Buttons {
+	return {}
+}
+
+mouse_wheel :: proc() -> [2]f32 {
+	return {}
+}
+
+text_input :: proc() -> string {
+	return ""
+}

@@ -12,6 +12,12 @@ Interface :: struct #all_or_none {
 	keys_down: proc() -> Key_Set,
 	screen_size: proc() -> [2]int,
 
+	mouse_position: proc() -> [2]f32,
+	mouse_down: proc() -> Mouse_Buttons,
+	mouse_wheel: proc() -> [2]f32,
+
+	text_input: proc() -> string,
+
 	begin_frame: proc(),
 	end_frame: proc(),
 	clear: proc(color:Color),
