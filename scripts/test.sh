@@ -17,7 +17,7 @@ if ls source/player/*.odin >/dev/null 2>&1; then
   mkdir -p build/test
   bash scripts/build_game.sh boxes test
   odin build source/player -out:"build/test/skald_player_nil$ext" -debug -vet \
-      -collection:skald=source -define:SKALD_BACKEND=nil -define:SKALD_GAME=build/test/games/boxes
+      -collection:skald=source -define:SKALD_BACKEND=nil -define:SKALD_GAME_DIR=build/test/games
   "./build/test/skald_player_nil$ext"
   echo "player ran headless ok"
 fi

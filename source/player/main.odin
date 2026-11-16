@@ -7,6 +7,7 @@ import "core:mem"
 import "core:time"
 import "core:strings"
 import "base:runtime"
+import "core:path/filepath"
 
 import "skald:backend_raylib"
 import "skald:backend_nil"
@@ -25,8 +26,7 @@ when BACKEND_NAME == "raylib" {
 	#panic("unknown SKALD_BACKEND: " + BACKEND_NAME)
 }
 
-GAME_PATH :: #config(SKALD_GAME, "build/debug/games/boxes")
-GAME_SOURCE :: #config(SKALD_GAME_SOURCE, "examples/boxes")
+GAME_DIR :: #config(SKALD_GAME_DIR, "build/debug/games")
 
 when ODIN_OS == .Windows {
 	DLL_EXT :: ".dll"
@@ -56,6 +56,9 @@ old_games: [dynamic]Game_API
 source_time: time.Time
 build: os.Process
 building: bool
+game_source: string
+game_path: string
+game_lib: string
 
 main :: proc() {
   	if !init() {
@@ -66,6 +69,13 @@ main :: proc() {
 }
 
 init :: proc() -> bool {
+	game_source = len(os.args) > 1 ? strings.trim_right(os.args[1], "/\\") : "boxes"
+	if !os.is_dir(game_source) {
+		game_source = strings.concatenate({"examples/", game_source})
+	}
+	game_path = strings.concatenate({GAME_DIR, "/", filepath.base(game_source)})
+	game_lib = strings.concatenate({game_path, DLL_EXT})
+
   	platform_api = pf
   	platform_api.init(1280, 720, "skald")
 	source_time = newest_source_time()
@@ -85,7 +95,7 @@ step :: proc() -> bool {
   		return false
   	}
 
-  	if t, err := os.modification_time_by_path(GAME_PATH + DLL_EXT); err == nil && t != game.mod_time {
+  	if t, err := os.modification_time_by_path(game_lib); err == nil && t != game.mod_time {
   		reload_game()
   	}
 
@@ -110,14 +120,14 @@ shutdown :: proc() {
 }
 
 load_game :: proc(version: int) -> (api: Game_API, ok: bool) {
-  	src := GAME_PATH + DLL_EXT
+  	src := game_lib
   	mod_time, err := os.modification_time_by_path(src)
   	if err != nil {
   		fmt.eprintln("no game library at", src)
   		return
   	}
 
-  	dst := fmt.tprintf("%s_%d%s", GAME_PATH, version, DLL_EXT)
+  	dst := fmt.tprintf("%s_%d%s", game_path, version, DLL_EXT)
   	if copy_err := os.copy_file(dst, src); copy_err != nil {
   		fmt.eprintln("could not copy", src, copy_err)
   		return
@@ -165,11 +175,11 @@ reload_game :: proc() {
 
 unload_game :: proc(api: Game_API) {
   	dynlib.unload_library(api.__handle)
-  	os.remove(fmt.tprintf("%s_%d%s", GAME_PATH, api.version, DLL_EXT))
+  	os.remove(fmt.tprintf("%s_%d%s", game_path, api.version, DLL_EXT))
 }
 
 newest_source_time :: proc() -> time.Time {
-	files, err := os.read_all_directory_by_path(GAME_SOURCE, context.temp_allocator)
+	files, err := os.read_all_directory_by_path(game_source, context.temp_allocator)
 	if err != nil {
 		return {}
 	}
@@ -204,7 +214,7 @@ watch_source :: proc() {
 	source_time = t
 
 	p, err := os.process_start({
-		command = {"bash", "scripts/build_game.sh", GAME_SOURCE},
+		command = {"bash", "scripts/build_game.sh", game_source},
 		stdout = os.stdout,
 		stderr = os.stderr,
 	})
