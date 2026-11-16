@@ -96,10 +96,19 @@ game_step :: proc() {
 	pf.begin_frame()
 	pf.clear({30, 30, 30, 255})
 
+	flashlight := .Right in pf.mouse_down()
+	if flashlight {
+		pf.begin_clip(pf.mouse_position() - 100, 200)
+	}
+
 	it := skald.make_iterator(&state.boxes)
 	for box in skald.iterate(&it) {
 		draw_pos := box.prev_pos + (box.pos - box.prev_pos) * alpha
 		pf.draw_rect(draw_pos, BOX_SIZE + box.spin * 0.1, ORANGE)
+	}
+
+	if flashlight {
+		pf.end_clip()
 	}
 
 	cursor_color := skald.Color{255, 255, 255, 255}
@@ -115,8 +124,10 @@ game_step :: proc() {
 		fmt.println("wheel", wheel)
 	}
 
-	pf.draw_text(fmt.tprintf("%.0f fps", state.fps), {20, 20}, 20, {255, 255, 255, 255})
-
+	label := fmt.tprintf("%.0f fps, dpi %.1f", state.fps, pf.dpi_scale())
+	pf.draw_rect({14, 16}, pf.measure_text(label, 20) + {12, 8}, {0, 0, 0, 200})
+	pf.draw_text(label, {20, 20}, 20, {255, 255, 255, 255})
+	
 	pf.end_frame()
 
 	free_all(context.temp_allocator)

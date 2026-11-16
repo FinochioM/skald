@@ -20,6 +20,10 @@ BACKEND :: platform.Interface {
 	clear        = clear,
 	draw_rect    = draw_rect,
 	draw_text    = draw_text,
+	measure_text = measure_text,
+	begin_clip = begin_clip,
+	end_clip = end_clip,
+	dpi_scale = dpi_scale,
 }
 
 @(private)
@@ -73,3 +77,14 @@ mouse_wheel :: proc() -> [2]f32 {
 text_input :: proc() -> string {
 	return ""
 }
+
+measure_text :: proc(text: string, size: f32) -> [2]f32 {
+	return {f32(len(text)) * size * 0.5, size}
+}
+
+dpi_scale :: proc() -> f32 {
+	return 1
+}
+
+begin_clip :: proc(pos, size: [2]f32) {}
+end_clip :: proc() {}

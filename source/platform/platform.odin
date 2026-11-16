@@ -23,6 +23,12 @@ Interface :: struct #all_or_none {
 	clear: proc(color:Color),
 	draw_rect: proc(pos, size: [2]f32, color: Color),
 	draw_text: proc(text: string, pos: [2]f32, size: f32, color: Color),
+
+	dpi_scale: proc() -> f32,
+	measure_text: proc(text: string, size: f32) -> [2]f32,
+
+	begin_clip: proc(pos, size: [2]f32),
+	end_clip: proc(),
 }
 
 Color :: [4]u8

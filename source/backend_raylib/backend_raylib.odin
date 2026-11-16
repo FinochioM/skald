@@ -20,6 +20,10 @@ BACKEND :: platform.Interface {
 	clear = clear,
 	draw_rect = draw_rect,
 	draw_text = draw_text,
+	measure_text = measure_text,
+	begin_clip = begin_clip,
+	end_clip = end_clip,
+	dpi_scale = dpi_scale,
 }
 
 init :: proc(width, height: int, title: string) {
@@ -125,4 +129,20 @@ text_input :: proc() -> string {
 @(private)
 MOUSE_MAP := [platform.Mouse_Button]rl.MouseButton {
 	.Left = .LEFT, .Right = .RIGHT, .Middle = .MIDDLE,
+}
+
+measure_text :: proc(text: string, size: f32) -> [2]f32 {
+	return rl.MeasureTextEx(rl.GetFontDefault(), cstr(text), size, size / 10)
+}
+
+dpi_scale :: proc() -> f32 {
+	return rl.GetWindowScaleDPI().x
+}
+
+begin_clip :: proc(pos, size: [2]f32) {
+	rl.BeginScissorMode(i32(pos.x), i32(pos.y), i32(size.x), i32(size.y))
+}
+
+end_clip :: proc() {
+	rl.EndScissorMode()
 }
