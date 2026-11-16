@@ -22,13 +22,20 @@ Interface :: struct #all_or_none {
 	end_frame: proc(),
 	clear: proc(color:Color),
 	draw_rect: proc(pos, size: [2]f32, color: Color),
-	draw_text: proc(text: string, pos: [2]f32, size: f32, color: Color),
 
 	dpi_scale: proc() -> f32,
-	measure_text: proc(text: string, size: f32) -> [2]f32,
+	measure_text: proc(font: Font, text: string, size: f32) -> [2]f32,
+
+	load_font: proc(data: []u8, size: f32) -> Font,
+	unload_font: proc(font: Font),
 
 	begin_clip: proc(pos, size: [2]f32),
 	end_clip: proc(),
+
+	draw_text: proc(font: Font, text: string, pos: [2]f32, size: f32, color: Color),
 }
 
 Color :: [4]u8
+
+Font :: distinct u32
+DEFAULT_FONT :: Font(0)

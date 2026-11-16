@@ -24,6 +24,8 @@ BACKEND :: platform.Interface {
 	begin_clip = begin_clip,
 	end_clip = end_clip,
 	dpi_scale = dpi_scale,
+	load_font = load_font,
+	unload_font = unload_font,
 }
 
 init :: proc(width, height: int, title: string) {
@@ -34,6 +36,12 @@ init :: proc(width, height: int, title: string) {
 }
 
 shutdown :: proc() {
+	for f in fonts {
+		if f.texture.id != 0 {
+			rl.UnloadFont(f)
+		}
+	}
+	delete(fonts)
 	rl.CloseWindow()
 }
 
@@ -65,8 +73,9 @@ draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {
 	rl.DrawRectangleV(pos, size, rl.Color(color))
 }
 
-draw_text :: proc(text: string, pos: [2]f32, size: f32, color: platform.Color) {
-	rl.DrawText(cstr(text), i32(pos.x), i32(pos.y), i32(size), rl.Color(color))
+draw_text :: proc(font: platform.Font, text: string, pos: [2]f32, size: f32, color: platform.Color) {
+	f, spacing := get_font(font, size)
+	rl.DrawTextEx(f, cstr(text), pos, size, spacing, rl.Color(color))
 }
 
 @(private)
@@ -131,8 +140,9 @@ MOUSE_MAP := [platform.Mouse_Button]rl.MouseButton {
 	.Left = .LEFT, .Right = .RIGHT, .Middle = .MIDDLE,
 }
 
-measure_text :: proc(text: string, size: f32) -> [2]f32 {
-	return rl.MeasureTextEx(rl.GetFontDefault(), cstr(text), size, size / 10)
+measure_text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32 {
+	f, spacing := get_font(font, size)
+	return rl.MeasureTextEx(f, cstr(text), size, spacing)
 }
 
 dpi_scale :: proc() -> f32 {
@@ -145,4 +155,40 @@ begin_clip :: proc(pos, size: [2]f32) {
 
 end_clip :: proc() {
 	rl.EndScissorMode()
+}
+
+@(private)
+fonts: [dynamic]rl.Font
+
+load_font :: proc(data: []u8, size: f32) -> platform.Font {
+	codepoints: [224]rune
+	for &c, i in codepoints {
+		c = rune(32 + i)
+	}
+
+	f := rl.LoadFontFromMemory(".ttf", raw_data(data), i32(len(data)), i32(size), raw_data(codepoints[:]), len(codepoints))
+	rl.SetTextureFilter(f.texture, .BILINEAR)
+
+	append(&fonts, f)
+	return platform.Font(len(fonts))
+}
+
+unload_font :: proc(font: platform.Font) {
+	i := int(font) - 1
+	if i < 0 || i >= len(fonts) || fonts[i].texture.id == 0 {
+		return
+	}
+
+	rl.UnloadFont(fonts[i])
+	fonts[i] = {}
+}
+
+@(private)
+get_font :: proc(font: platform.Font, size: f32) -> (rl.Font, f32) {
+	i := int(font) - 1
+	if i < 0 || i >= len(fonts) || fonts[i].texture.id == 0 {
+		return rl.GetFontDefault(), size / 10
+	}
+
+	return fonts[i], 0
 }

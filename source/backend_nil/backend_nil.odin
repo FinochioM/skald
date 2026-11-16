@@ -24,6 +24,8 @@ BACKEND :: platform.Interface {
 	begin_clip = begin_clip,
 	end_clip = end_clip,
 	dpi_scale = dpi_scale,
+	load_font = load_font,
+	unload_font = unload_font,
 }
 
 @(private)
@@ -60,7 +62,7 @@ end_frame :: proc() {
 clear :: proc(color: platform.Color) {}
 
 draw_rect :: proc(pos, size: [2]f32, color: platform.Color) {}
-draw_text :: proc(text: string, pos: [2]f32, size: f32, color: platform.Color) {}
+draw_text :: proc(font: platform.Font, text: string, pos: [2]f32, size: f32, color: platform.Color) {}
 
 mouse_position :: proc() -> [2]f32 {
 	return {}
@@ -78,7 +80,7 @@ text_input :: proc() -> string {
 	return ""
 }
 
-measure_text :: proc(text: string, size: f32) -> [2]f32 {
+measure_text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32 {
 	return {f32(len(text)) * size * 0.5, size}
 }
 
@@ -88,3 +90,8 @@ dpi_scale :: proc() -> f32 {
 
 begin_clip :: proc(pos, size: [2]f32) {}
 end_clip :: proc() {}
+load_font :: proc(data: []u8, size: f32) -> platform.Font {
+	return platform.Font(1)
+}
+
+unload_font :: proc(font: platform.Font) {}

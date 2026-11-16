@@ -125,8 +125,8 @@ game_step :: proc() {
 	}
 
 	label := fmt.tprintf("%.0f fps, dpi %.1f", state.fps, pf.dpi_scale())
-	pf.draw_rect({14, 16}, pf.measure_text(label, 20) + {12, 8}, {0, 0, 0, 200})
-	pf.draw_text(label, {20, 20}, 20, {255, 255, 255, 255})
+	pf.draw_rect({14, 16}, pf.measure_text(skald.DEFAULT_FONT, label, 20) + {12, 8}, {0, 0, 0, 200})
+	pf.draw_text(skald.DEFAULT_FONT, label, {20, 20}, 20, {255, 255, 255, 255})
 	
 	pf.end_frame()
 
