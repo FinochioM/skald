@@ -1,17 +1,18 @@
 package ui_demo
 
 import "base:runtime"
+import "core:fmt"
 
 import "skald:skald"
 import "skald:ui"
 
 TEXT_SIZE :: 16
-TITLE_SIZE :: 32
 
 State :: struct {
 	pf: ^skald.Platform,
 	font: skald.Font,
-	title_font: skald.Font,
+	ui: ui.Context,
+	clicks: int,
 }
 
 state: ^State
@@ -21,24 +22,32 @@ game_init :: proc(pf: ^skald.Platform) {
 	state = new(State)
 	state.pf = pf
 
-	scale := pf.dpi_scale()
-	state.font = ui.load_default_font(pf, TEXT_SIZE * scale)
-	state.title_font = ui.load_default_font(pf, TITLE_SIZE * scale)
+	size := TEXT_SIZE * pf.dpi_scale()
+	state.font = ui.load_default_font(pf, size)
+	ui.init(&state.ui, pf.measure_text, state.font, size)
 }
 
 @(export)
 game_step :: proc() {
 	pf := state.pf
-	scale := pf.dpi_scale()
-	white := skald.Color{230, 230, 230, 255}
+	ctx := &state.ui
+
+	ui.begin(ctx, {mouse = pf.mouse_position(), down = pf.mouse_down()})
+
+	ui.label(ctx, "skald ui")
+	if ui.button(ctx, "click me") {
+		state.clicks += 1
+	}
+	ui.label(ctx, fmt.tprintf("clicked %d times", state.clicks))
+	if ui.button(ctx, "reset") {
+		state.clicks = 0
+	}
+
+	ui.end(ctx)
 
 	pf.begin_frame()
 	pf.clear({24, 24, 28, 255})
-
-	pf.draw_text(state.title_font, "skald ui", {20, 20} * scale, TITLE_SIZE * scale, white)
-	pf.draw_text(state.font, "fira code 16 ñandú, café, 0O 1lI {}[]", {20, 70} * scale, TEXT_SIZE * scale, white)
-	pf.draw_text(skald.DEFAULT_FONT, "built-in 16 to compare", {20, 100} * scale, TEXT_SIZE * scale, white)
-
+	ui.draw(ctx, pf)
 	pf.end_frame()
 
 	free_all(context.temp_allocator)
@@ -46,8 +55,8 @@ game_step :: proc() {
 
 @(export)
 game_shutdown :: proc() {
+	ui.destroy(&state.ui)
 	state.pf.unload_font(state.font)
-	state.pf.unload_font(state.title_font)
 	free(state)
 }
 

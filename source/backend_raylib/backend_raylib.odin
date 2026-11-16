@@ -161,9 +161,13 @@ end_clip :: proc() {
 fonts: [dynamic]rl.Font
 
 load_font :: proc(data: []u8, size: f32) -> platform.Font {
-	codepoints: [224]rune
-	for &c, i in codepoints {
-		c = rune(32 + i)
+	codepoints: [191]rune
+	n := 0
+	for r in rune(32) ..= 255 {
+		if r < 127 || r >= 160 {
+			codepoints[n] = r
+			n += 1
+		}
 	}
 
 	f := rl.LoadFontFromMemory(".ttf", raw_data(data), i32(len(data)), i32(size), raw_data(codepoints[:]), len(codepoints))
