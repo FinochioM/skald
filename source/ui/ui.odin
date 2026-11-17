@@ -57,6 +57,7 @@ Panel_Range :: struct {
 	rect: Rect,
 	first: int,
 	last: int,
+	docked: bool,
 }
 
 Measure_Text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32
@@ -143,16 +144,22 @@ end :: proc(ctx: ^Context) {
 	}
 	resize(&ctx.panel_order, keep)
 	for p in ctx.panels {
-		if !in_order(ctx, p.id) {
+		if in_order(ctx, p.id) {
+			continue
+		}
+		if p.docked {
+			inject_at(&ctx.panel_order, 0, p.id)
+		} else {
 			append(&ctx.panel_order, p.id)
 		}
 	}
 
 	ctx.hover_panel = 0
 	#reverse for id, i in ctx.panel_order {
-		if rect_contains(ctx.panels[find_panel(ctx, id)].rect, ctx.mouse) {
+		p := ctx.panels[find_panel(ctx, id)]
+		if rect_contains(p.rect, ctx.mouse) {
 			ctx.hover_panel = id
-			if .Left in ctx.mouse_pressed {
+			if .Left in ctx.mouse_pressed && !p.docked {
 				ordered_remove(&ctx.panel_order, i)
 				append(&ctx.panel_order, id)
 			}

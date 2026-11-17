@@ -1,6 +1,6 @@
 package ui
 
-begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect) {
+begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect, docked := false) {
 	assert(ctx.panel == 0, "panels don't nest")
 	push_id(ctx, title)
 	ctx.panel = ctx.id_stack[len(ctx.id_stack) - 1]
@@ -9,16 +9,19 @@ begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect) {
 	bar := Rect{rect.pos, {rect.size.x, title_h}}
 
 	id := get_id(ctx, "title bar")
-	update_control(ctx, id, bar)
-	if ctx.active == id {
-		if .Left in ctx.mouse_pressed {
-			ctx.drag_offset = ctx.mouse - rect.pos
+
+	if !docked {
+		update_control(ctx, id, bar)
+		if ctx.active == id {
+			if .Left in ctx.mouse_pressed {
+				ctx.drag_offset = ctx.mouse - rect.pos
+			}
+			rect.pos = ctx.mouse - ctx.drag_offset
+			bar.pos = rect.pos
 		}
-		rect.pos = ctx.mouse - ctx.drag_offset
-		bar.pos = rect.pos
 	}
 
-    append(&ctx.panels, Panel_Range{ctx.panel, rect^, len(ctx.commands), 0})
+    append(&ctx.panels, Panel_Range{ctx.panel, rect^, len(ctx.commands), 0, docked})
 
 	push_rect(ctx, rect^, ctx.theme.panel)
 	push_rect(ctx, bar, ctx.active == id ? ctx.theme.accent : ctx.theme.title)

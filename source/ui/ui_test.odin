@@ -200,3 +200,53 @@ test_scale :: proc(t: ^testing.T) {
 	testing.expect_value(t, ctx.theme.font_size, 32)
 	testing.expect_value(t, r.pos, [2]f32{PADDING * 2, PADDING * 2})
 }
+
+@(test)
+test_split_drag :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	r := Rect{{0, 0}, {200 + SPACING, 100}}
+	ratio := f32(0.5)
+	a, b: Rect
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, r: Rect, ratio: ^f32) -> (a, b: Rect) {
+		begin(ctx, {mouse = mouse, down = down})
+		a, b = split(ctx, "s", r, .Row, ratio)
+		end(ctx)
+		return
+	}
+
+	step(&ctx, {103, 50}, {}, r, &ratio)
+	step(&ctx, {103, 50}, {.Left}, r, &ratio)
+	a, b = step(&ctx, {53, 50}, {.Left}, r, &ratio)
+
+	testing.expect_value(t, ratio, 0.25)
+	testing.expect_value(t, a.size.x, 50)
+	testing.expect_value(t, b.pos.x, 50 + SPACING)
+	testing.expect_value(t, a.size.x + SPACING + b.size.x, r.size.x)
+}
+
+@(test)
+test_dock_stays_below :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	f := Rect{{50, 50}, {100, 100}}
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, f: ^Rect) {
+		begin(ctx, {mouse = mouse, down = down})
+		begin_panel(ctx, "f", f)
+		end_panel(ctx)
+		begin_dock(ctx, "d", {{0, 0}, {200, 200}})
+		end_dock(ctx)
+		end(ctx)
+	}
+
+	step(&ctx, {10, 190}, {}, &f)
+	step(&ctx, {10, 190}, {.Left}, &f)
+	step(&ctx, {10, 190}, {}, &f)
+
+	testing.expect_value(t, ctx.panel_order[0], get_id(&ctx, "d"))
+	testing.expect_value(t, ctx.panel_order[1], get_id(&ctx, "f"))
+}

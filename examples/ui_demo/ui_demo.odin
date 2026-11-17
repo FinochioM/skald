@@ -14,9 +14,11 @@ State :: struct {
 	clicks: int,
 	show_extra: bool,
 	volume: f32,
-	main_panel: Rect,
 	list_panel: Rect,
 	big: bool,
+	left_split: f32,
+	right_split: f32,
+	bottom_split: f32,
 }
 
 state: ^State
@@ -44,7 +46,17 @@ game_step :: proc() {
 
 	ui.begin(ctx, {mouse = pf.mouse_position(), down = pf.mouse_down()})
 
-	main_panel(ctx)
+	size := pf.screen_size()
+	screen := Rect{{0, 0}, {f32(size.x), f32(size.y)}}
+	left, rest := ui.split(ctx, "left split", screen, .Row, &state.left_split)
+	center, right := ui.split(ctx, "right split", rest, .Row, &state.right_split)
+	view, bottom := ui.split(ctx, "bottom split", center, .Column, &state.bottom_split)
+
+	outliner(ctx, left)
+	inspector(ctx, right)
+	console(ctx, bottom)
+	viewport(ctx, view)
+
 	list_panel(ctx)
 
 	ui.end(ctx)
@@ -81,16 +93,38 @@ game_hot_reloaded :: proc(mem: rawptr) {
 }
 
 place_panels :: proc() {
-	if state.main_panel.size == 0 {
-		state.main_panel = {{20, 20}, {420, 260}}
+	if state.left_split == 0 {
+		state.left_split = 0.2
+		state.right_split = 0.7
+		state.bottom_split = 0.75
 	}
 	if state.list_panel.size == 0 {
 		state.list_panel = {{460, 20}, {240, 200}}
 	}
 }
 
-main_panel :: proc(ctx: ^ui.Context) {
-	ui.panel(ctx, "skald ui", &state.main_panel)
+outliner :: proc(ctx: ^ui.Context, r: Rect) {
+	ui.dock(ctx, "outliner", r)
+
+	for i in 0 ..< 30 {
+		ui.label(ctx, fmt.tprintf("thing %d", i))
+	}
+}
+
+console :: proc(ctx: ^ui.Context, r: Rect) {
+	ui.dock(ctx, "console", r)
+
+	ui.label(ctx, "built build/debug/games/ui_demo.so")
+	ui.label(ctx, "drag the dividers between docks")
+}
+
+viewport :: proc(ctx: ^ui.Context, r: Rect) {
+	ui.push_rect(ctx, r, {16, 16, 20, 255})
+	ui.push_text(ctx, "viewport", r.pos + ctx.theme.padding, ctx.theme.text)
+}
+
+inspector :: proc(ctx: ^ui.Context, r: Rect) {
+	ui.dock(ctx, "inspector", r)
 
 	{
 		ui.row(ctx)
@@ -129,9 +163,7 @@ rescale :: proc(scale: f32) {
 	ui.set_scale(&state.ui, state.font, scale)
 
 	if old > 0 {
-		for r in ([]^Rect{&state.main_panel, &state.list_panel}) {
-			r.pos *= scale / old
-			r.size *= scale / old
-		}
+		state.list_panel.pos *= scale / old
+		state.list_panel.size *= scale / old
 	}
 }
