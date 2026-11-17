@@ -34,6 +34,18 @@ Command :: union {
 	Draw_Text,
 }
 
+Direction :: enum u8 {
+	Column,
+	Row,
+}
+
+Layout :: struct {
+	dir: Direction,
+	start: [2]f32,
+	cursor: [2]f32,
+	extent: [2]f32,
+}
+
 Measure_Text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32
 
 Context :: struct {
@@ -51,7 +63,7 @@ Context :: struct {
 	active: Id,
 
 	id_stack: [dynamic]Id,
-	cursor: [2]f32,
+	layouts: [dynamic]Layout,
 	commands: [dynamic]Command,
 }
 
@@ -64,12 +76,14 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_siz
 		font = font,
 		font_size = font_size,
 		id_stack = make([dynamic]Id, allocator),
+		layouts = make([dynamic]Layout, allocator),
 		commands = make([dynamic]Command, allocator),
 	}
 }
 
 destroy :: proc(ctx: ^Context) {
 	delete(ctx.id_stack)
+	delete(ctx.layouts)
 	delete(ctx.commands)
 }
 
@@ -84,7 +98,8 @@ begin :: proc(ctx: ^Context, input: Input) {
 
 	clear(&ctx.id_stack)
 	clear(&ctx.commands)
-	ctx.cursor = {PADDING, PADDING}
+	clear(&ctx.layouts)
+	append(&ctx.layouts, Layout{.Column, PADDING, PADDING, PADDING})
 }
 
 end :: proc(ctx: ^Context) {
@@ -121,9 +136,39 @@ pop_id :: proc(ctx: ^Context) {
 }
 
 next_rect :: proc(ctx: ^Context, size: [2]f32) -> Rect {
-	r := Rect{ctx.cursor, size}
-	ctx.cursor.y += size.y + SPACING
+	l := &ctx.layouts[len(ctx.layouts) - 1]
+	r := Rect{l.cursor, size}
+
+	switch l.dir {
+	case .Column:
+		l.cursor.y += size.y + SPACING
+	case .Row:
+		l.cursor.x += size.x + SPACING
+	}
+	l.extent = {max(l.extent.x, r.pos.x + size.x), max(l.extent.y, r.pos.y + size.y)}
+
 	return r
+}
+
+begin_layout :: proc(ctx: ^Context, dir: Direction) {
+	cursor := ctx.layouts[len(ctx.layouts) - 1].cursor
+	append(&ctx.layouts, Layout{dir, cursor, cursor, cursor})
+}
+
+end_layout :: proc(ctx: ^Context) {
+	assert(len(ctx.layouts) > 1, "end_layout without begin_layout")
+	l := pop(&ctx.layouts)
+	next_rect(ctx, l.extent - l.start)
+}
+
+@(deferred_in=end_layout)
+row :: proc(ctx: ^Context) {
+	begin_layout(ctx, .Row)
+}
+
+@(deferred_in=end_layout)
+column :: proc(ctx: ^Context) {
+	begin_layout(ctx, .Column)
 }
 
 rect_contains :: proc(r: Rect, p: [2]f32) -> bool {

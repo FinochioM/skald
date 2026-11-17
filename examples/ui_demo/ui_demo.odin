@@ -13,6 +13,8 @@ State :: struct {
 	font: skald.Font,
 	ui: ui.Context,
 	clicks: int,
+	show_extra: bool,
+	volume: f32,
 }
 
 state: ^State
@@ -35,12 +37,21 @@ game_step :: proc() {
 	ui.begin(ctx, {mouse = pf.mouse_position(), down = pf.mouse_down()})
 
 	ui.label(ctx, "skald ui")
-	if ui.button(ctx, "click me") {
-		state.clicks += 1
+	{
+		ui.row(ctx)
+		if ui.button(ctx, "click me") {
+			state.clicks += 1
+		}
+		if ui.button(ctx, "reset") {
+			state.clicks = 0
+		}
+		ui.label(ctx, fmt.tprintf("clicked %d times", state.clicks))
 	}
-	ui.label(ctx, fmt.tprintf("clicked %d times", state.clicks))
-	if ui.button(ctx, "reset") {
-		state.clicks = 0
+
+	ui.checkbox(ctx, "show extra", &state.show_extra)
+	if state.show_extra {
+		ui.slider(ctx, "volume", &state.volume, 0, 1)
+		ui.label(ctx, "hidden until the box is ticked")
 	}
 
 	ui.end(ctx)

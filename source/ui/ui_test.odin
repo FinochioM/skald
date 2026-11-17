@@ -49,3 +49,56 @@ test_ids :: proc(t: ^testing.T) {
 	testing.expect(t, a != b)
 	testing.expect(t, a == get_id(&ctx, "ok"))
 }
+
+@(test)
+test_row_layout :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 16)
+	defer destroy(&ctx)
+
+	begin(&ctx, {})
+	a, b: Rect
+	{
+		row(&ctx)
+		a = next_rect(&ctx, {10, 20})
+		b = next_rect(&ctx, {30, 5})
+	}
+	c := next_rect(&ctx, {1, 1})
+	end(&ctx)
+
+	testing.expect_value(t, a.pos, [2]f32{PADDING, PADDING})
+	testing.expect_value(t, b.pos, [2]f32{PADDING + 10 + SPACING, PADDING})
+	testing.expect_value(t, c.pos, [2]f32{PADDING, PADDING + 20 + SPACING})
+}
+
+@(test)
+test_checkbox_and_slider :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 16)
+	defer destroy(&ctx)
+
+	on: bool
+	v: f32
+	box := [2]f32{PADDING + 2, PADDING + 2}
+	slider_y := f32(PADDING + 16 + SPACING + 4)
+
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, on: ^bool, v: ^f32) {
+		begin(ctx, {mouse = mouse, down = down})
+		checkbox(ctx, "on", on)
+		slider(ctx, "v", v, 0, 10)
+		end(ctx)
+		free_all(context.temp_allocator)
+	}
+
+	step(&ctx, box, {}, &on, &v)
+	step(&ctx, box, {.Left}, &on, &v)
+	step(&ctx, box, {}, &on, &v)
+	testing.expect(t, on)
+
+	step(&ctx, {PADDING + 1, slider_y}, {}, &on, &v)
+	step(&ctx, {PADDING + 1, slider_y}, {.Left}, &on, &v)
+	step(&ctx, {PADDING + SLIDER_WIDTH / 2, slider_y}, {.Left}, &on, &v)
+	testing.expect_value(t, v, 5)
+	step(&ctx, {9999, 9999}, {.Left}, &on, &v)
+	testing.expect_value(t, v, 10)
+}
