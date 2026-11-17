@@ -29,9 +29,15 @@ Draw_Text :: struct {
 	color: platform.Color,
 }
 
+Clip :: struct {
+	rect: Rect,
+	enabled: bool,
+}
+
 Command :: union {
 	Draw_Rect,
 	Draw_Text,
+	Clip,
 }
 
 Direction :: enum u8 {
@@ -64,6 +70,8 @@ Context :: struct {
 
 	id_stack: [dynamic]Id,
 	layouts: [dynamic]Layout,
+	clips: [dynamic]Rect,
+	drag_offset: [2]f32,
 	commands: [dynamic]Command,
 }
 
@@ -77,6 +85,7 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_siz
 		font_size = font_size,
 		id_stack = make([dynamic]Id, allocator),
 		layouts = make([dynamic]Layout, allocator),
+		clips = make([dynamic]Rect, allocator),
 		commands = make([dynamic]Command, allocator),
 	}
 }
@@ -84,6 +93,7 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_siz
 destroy :: proc(ctx: ^Context) {
 	delete(ctx.id_stack)
 	delete(ctx.layouts)
+	delete(ctx.clips)
 	delete(ctx.commands)
 }
 
@@ -99,6 +109,7 @@ begin :: proc(ctx: ^Context, input: Input) {
 	clear(&ctx.id_stack)
 	clear(&ctx.commands)
 	clear(&ctx.layouts)
+	clear(&ctx.clips)
 	append(&ctx.layouts, Layout{.Column, PADDING, PADDING, PADDING})
 }
 
@@ -113,6 +124,12 @@ draw :: proc(ctx: ^Context, pf: ^platform.Interface) {
 		switch c in cmd {
 		case Draw_Rect:
 			pf.draw_rect(c.rect.pos, c.rect.size, c.color)
+		case Clip:
+			if c.enabled {
+				pf.begin_clip(c.rect.pos, c.rect.size)
+			} else {
+				pf.end_clip()
+			}
 		case Draw_Text:
 			pf.draw_text(c.font, c.text, c.pos, c.size, c.color)
 		}
@@ -177,6 +194,11 @@ rect_contains :: proc(r: Rect, p: [2]f32) -> bool {
 
 update_control :: proc(ctx: ^Context, id: Id, r: Rect) -> (clicked: bool) {
 	over := rect_contains(r, ctx.mouse)
+	
+	if len(ctx.clips) > 0 {
+		over &&= rect_contains(ctx.clips[len(ctx.clips) - 1], ctx.mouse)
+	}
+
 	if over && (ctx.active == 0 || ctx.active == id) {
 		ctx.next_hot = id
 	}
@@ -199,4 +221,28 @@ push_rect :: proc(ctx: ^Context, r: Rect, color: platform.Color) {
 
 push_text :: proc(ctx: ^Context, text: string, pos: [2]f32, color: platform.Color) {
 	append(&ctx.commands, Draw_Text{ctx.font, text, pos, ctx.font_size, color})
+}
+
+rect_intersect :: proc(a, b: Rect) -> Rect {
+	lo := [2]f32{max(a.pos.x, b.pos.x), max(a.pos.y, b.pos.y)}
+	hi := [2]f32{min(a.pos.x + a.size.x, b.pos.x + b.size.x), min(a.pos.y + a.size.y, b.pos.y + b.size.y)}
+	return {lo, {max(hi.x - lo.x, 0), max(hi.y - lo.y, 0)}}
+}
+
+push_clip :: proc(ctx: ^Context, r: Rect) {
+	r := r
+	if len(ctx.clips) > 0 {
+		r = rect_intersect(r, ctx.clips[len(ctx.clips) - 1])
+	}
+	append(&ctx.clips, r)
+	append(&ctx.commands, Clip{r, true})
+}
+
+pop_clip :: proc(ctx: ^Context) {
+	pop(&ctx.clips)
+	if len(ctx.clips) > 0 {
+		append(&ctx.commands, Clip{ctx.clips[len(ctx.clips) - 1], true})
+	} else {
+		append(&ctx.commands, Clip{})
+	}
 }

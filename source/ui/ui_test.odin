@@ -102,3 +102,44 @@ test_checkbox_and_slider :: proc(t: ^testing.T) {
 	step(&ctx, {9999, 9999}, {.Left}, &on, &v)
 	testing.expect_value(t, v, 10)
 }
+
+@(test)
+test_panel_drag :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 16)
+	defer destroy(&ctx)
+
+	r := Rect{{100, 100}, {200, 150}}
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, r: ^Rect) {
+		begin(ctx, {mouse = mouse, down = down})
+		panel(ctx, "p", r)
+		end(ctx)
+	}
+
+	step(&ctx, {110, 105}, {}, &r)
+	step(&ctx, {110, 105}, {.Left}, &r)
+	step(&ctx, {160, 155}, {.Left}, &r)
+	step(&ctx, {160, 155}, {}, &r)
+	testing.expect_value(t, r.pos, [2]f32{150, 150})
+}
+
+@(test)
+test_panel_clips_input :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 16)
+	defer destroy(&ctx)
+
+	r := Rect{{100, 100}, {200, 40}}
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, r: ^Rect) -> (clicked: bool) {
+		begin(ctx, {mouse = mouse, down = down})
+		panel(ctx, "p", r)
+		clicked = button(ctx, "ok")
+		end(ctx)
+		return
+	}
+
+	inside_button := [2]f32{112, 150}
+	step(&ctx, inside_button, {}, &r)
+	step(&ctx, inside_button, {.Left}, &r)
+	testing.expect(t, !step(&ctx, inside_button, {}, &r))
+}
