@@ -52,6 +52,13 @@ Layout :: struct {
 	extent: [2]f32,
 }
 
+Panel_Range :: struct {
+	id: Id,
+	rect: Rect,
+	first: int,
+	last: int,
+}
+
 Measure_Text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32
 
 Context :: struct {
@@ -72,6 +79,11 @@ Context :: struct {
 	layouts: [dynamic]Layout,
 	clips: [dynamic]Rect,
 	drag_offset: [2]f32,
+
+	panels: [dynamic]Panel_Range,
+	panel_order: [dynamic]Id,
+	panel: Id,
+	hover_panel: Id,
 	commands: [dynamic]Command,
 }
 
@@ -87,6 +99,8 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_siz
 		layouts = make([dynamic]Layout, allocator),
 		clips = make([dynamic]Rect, allocator),
 		commands = make([dynamic]Command, allocator),
+		panels = make([dynamic]Panel_Range, allocator),
+		panel_order = make([dynamic]Id, allocator),
 	}
 }
 
@@ -95,6 +109,8 @@ destroy :: proc(ctx: ^Context) {
 	delete(ctx.layouts)
 	delete(ctx.clips)
 	delete(ctx.commands)
+	delete(ctx.panels)
+	delete(ctx.panel_order)
 }
 
 begin :: proc(ctx: ^Context, input: Input) {
@@ -110,6 +126,8 @@ begin :: proc(ctx: ^Context, input: Input) {
 	clear(&ctx.commands)
 	clear(&ctx.layouts)
 	clear(&ctx.clips)
+	clear(&ctx.panels)
+	ctx.panel = 0
 	append(&ctx.layouts, Layout{.Column, PADDING, PADDING, PADDING})
 }
 
@@ -117,10 +135,71 @@ end :: proc(ctx: ^Context) {
 	if .Left not_in ctx.mouse_down {
 		ctx.active = 0
 	}
+
+	keep := 0
+	for id in ctx.panel_order {
+		if find_panel(ctx, id) >= 0 {
+			ctx.panel_order[keep] = id
+			keep += 1
+		}
+	}
+	resize(&ctx.panel_order, keep)
+	for p in ctx.panels {
+		if !in_order(ctx, p.id) {
+			append(&ctx.panel_order, p.id)
+		}
+	}
+
+	ctx.hover_panel = 0
+	#reverse for id, i in ctx.panel_order {
+		if rect_contains(ctx.panels[find_panel(ctx, id)].rect, ctx.mouse) {
+			ctx.hover_panel = id
+			if .Left in ctx.mouse_pressed {
+				ordered_remove(&ctx.panel_order, i)
+				append(&ctx.panel_order, id)
+			}
+			break
+		}
+	}
+}
+
+@(private)
+find_panel :: proc(ctx: ^Context, id: Id) -> int {
+	for p, i in ctx.panels {
+		if p.id == id {
+			return i
+		}
+	}
+	return -1
+}
+
+@(private)
+in_order :: proc(ctx: ^Context, id: Id) -> bool {
+	for o in ctx.panel_order {
+		if o == id {
+			return true
+		}
+	}
+	return false
 }
 
 draw :: proc(ctx: ^Context, pf: ^platform.Interface) {
-	for cmd in ctx.commands {
+	from := 0
+	for p in ctx.panels {
+		replay(ctx.commands[from:p.first], pf)
+		from = p.last
+	}
+	replay(ctx.commands[from:], pf)
+
+	for id in ctx.panel_order {
+		p := ctx.panels[find_panel(ctx, id)]
+		replay(ctx.commands[p.first:p.last], pf)
+	}
+}
+
+@(private)
+replay :: proc(commands: []Command, pf: ^platform.Interface) {
+	for cmd in commands {
 		switch c in cmd {
 		case Draw_Rect:
 			pf.draw_rect(c.rect.pos, c.rect.size, c.color)
@@ -193,7 +272,7 @@ rect_contains :: proc(r: Rect, p: [2]f32) -> bool {
 }
 
 update_control :: proc(ctx: ^Context, id: Id, r: Rect) -> (clicked: bool) {
-	over := rect_contains(r, ctx.mouse)
+	over := rect_contains(r, ctx.mouse) && ctx.panel == ctx.hover_panel
 	
 	if len(ctx.clips) > 0 {
 		over &&= rect_contains(ctx.clips[len(ctx.clips) - 1], ctx.mouse)

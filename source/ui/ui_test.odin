@@ -117,6 +117,7 @@ test_panel_drag :: proc(t: ^testing.T) {
 	}
 
 	step(&ctx, {110, 105}, {}, &r)
+	step(&ctx, {110, 105}, {}, &r)
 	step(&ctx, {110, 105}, {.Left}, &r)
 	step(&ctx, {160, 155}, {.Left}, &r)
 	step(&ctx, {160, 155}, {}, &r)
@@ -142,4 +143,39 @@ test_panel_clips_input :: proc(t: ^testing.T) {
 	step(&ctx, inside_button, {}, &r)
 	step(&ctx, inside_button, {.Left}, &r)
 	testing.expect(t, !step(&ctx, inside_button, {}, &r))
+}
+
+@(test)
+test_panel_front :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 16)
+	defer destroy(&ctx)
+
+	a := Rect{{0, 0}, {200, 200}}
+	b := Rect{{20, 20}, {200, 200}}
+	step :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons, a, b: ^Rect) -> (clicked: bool) {
+		begin(ctx, {mouse = mouse, down = down})
+		begin_panel(ctx, "a", a)
+		clicked = button(ctx, "ok")
+		end_panel(ctx)
+		begin_panel(ctx, "b", b)
+		end_panel(ctx)
+		end(ctx)
+		return
+	}
+
+	on_button := [2]f32{25, 50}
+	click :: proc(ctx: ^Context, mouse: [2]f32, a, b: ^Rect) -> bool {
+		step(ctx, mouse, {}, a, b)
+		step(ctx, mouse, {}, a, b)
+		step(ctx, mouse, {.Left}, a, b)
+		return step(ctx, mouse, {}, a, b)
+	}
+
+	testing.expect(t, !click(&ctx, on_button, &a, &b))
+
+	click(&ctx, {5, 150}, &a, &b)
+	testing.expect_value(t, ctx.panel_order[len(ctx.panel_order) - 1], get_id(&ctx, "a"))
+
+	testing.expect(t, click(&ctx, on_button, &a, &b))
 }
