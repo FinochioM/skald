@@ -37,11 +37,11 @@ DEFAULT_THEME :: Theme {
 set_scale :: proc(ctx: ^Context, font: platform.Font, scale: f32, theme := DEFAULT_THEME) {
 	ctx.font = font
 	ctx.scale = scale
-    ctx.theme.field_width *= scale
 
 	ctx.theme = theme
 	ctx.theme.font_size *= scale
 	ctx.theme.padding *= scale
 	ctx.theme.spacing *= scale
 	ctx.theme.slider_width *= scale
+	ctx.theme.field_width *= scale
 }

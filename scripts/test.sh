@@ -20,4 +20,12 @@ if ls source/player/*.odin >/dev/null 2>&1; then
       -collection:skald=source -define:SKALD_BACKEND=nil -define:SKALD_GAME_DIR=build/test/games
   "./build/test/skald_player_nil$ext"
   echo "player ran headless ok"
+
+  if ls source/editor/*.odin >/dev/null 2>&1; then
+    echo "== smoke source/editor (nil backend)"
+    odin build source/editor -out:"build/test/skald_editor_nil$ext" -debug -vet \
+        -collection:skald=source -define:SKALD_BACKEND=nil -define:SKALD_GAME_DIR=build/test/games
+    "./build/test/skald_editor_nil$ext"
+    echo "editor ran headless ok"
+  fi
 fi
