@@ -1,6 +1,5 @@
 package skald
 
-import "core:fmt"
 import "core:slice"
 import "core:strings"
 
@@ -26,7 +25,7 @@ save_collection :: proc(sb: ^strings.Builder, c: ^Collection($T), defaults: T) {
 }
 
 load_collection :: proc(c: ^Collection($T), text: string, defaults: T, allocator := context.allocator) -> bool {
-	name := fmt.tprint(typeid_of(T))
+	name := scene.type_name(type_info_of(T))
 
 	rest := text
 	for type_name, id, body in scene.next_item(&rest) {

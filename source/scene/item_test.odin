@@ -39,3 +39,39 @@ test_items :: proc(t: ^testing.T) {
 	testing.expect_value(t, got[0], a)
 	testing.expect_value(t, got[1], b)
 }
+
+@(test)
+test_items_from_type_info :: proc(t: ^testing.T) {
+	Kind :: enum u8 {
+		Slime = 2,
+		Bat = 5,
+	}
+	Enemy :: struct {
+		hp: i16,
+		kind: Kind,
+		pos: [2]f32,
+		name: string,
+	}
+
+	e := Enemy{hp = -4, kind = .Bat, pos = {1, 2}, name = "bob"}
+	ti := type_info_of(Enemy)
+
+	by_any := strings.builder_make()
+	defer strings.builder_destroy(&by_any)
+	write_item(&by_any, 7, e)
+
+	by_ti := strings.builder_make()
+	defer strings.builder_destroy(&by_ti)
+	write_item_ptr(&by_ti, 7, &e, ti)
+
+	testing.expect_value(t, strings.to_string(by_ti), strings.to_string(by_any))
+
+	rest := strings.to_string(by_ti)
+	_, _, body, ok := next_item(&rest)
+	testing.expect(t, ok)
+
+	back: Enemy
+	testing.expect(t, read_struct_ptr(body, &back, ti))
+	defer delete(back.name)
+	testing.expect_value(t, back, e)
+}

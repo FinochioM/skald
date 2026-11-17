@@ -4,8 +4,18 @@ import "core:mem"
 import "core:reflect"
 import "core:strconv"
 import "core:strings"
+import "base:runtime"
 
 read_struct :: proc(text: string, ptr: rawptr, id: typeid, allocator := context.allocator) -> bool {
+	return read_struct_ptr(text, ptr, type_info_of(id), allocator)
+}
+
+read_struct_ptr :: proc(text: string, ptr: rawptr, ti: ^runtime.Type_Info, allocator := context.allocator) -> bool {
+	s, is_struct := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
+	if !is_struct {
+		return false
+	}
+
 	text := text
 	for raw in strings.split_lines_iterator(&text) {
 		line := strings.trim_space(raw)
@@ -18,13 +28,12 @@ read_struct :: proc(text: string, ptr: rawptr, id: typeid, allocator := context.
 			return false
 		}
 
-		field := find_field(id, name)
-		if field.type == nil {
+		i := field_index(s, name)
+		if i < 0 {
 			continue
 		}
 
-		fv := any{rawptr(uintptr(ptr) + field.offset), field.type.id}
-		if !read_value(value, fv, allocator) {
+		if !read_value_ptr(value, rawptr(uintptr(ptr) + s.offsets[i]), s.types[i], allocator) {
 			return false
 		}
 	}
@@ -53,29 +62,45 @@ next_item :: proc(text: ^string) -> (type_name: string, id: u64, body: string, o
 }
 
 read_value :: proc(s: string, v: any, allocator := context.allocator) -> bool {
-	ti := reflect.type_info_base(type_info_of(v.id))
+	return read_value_ptr(s, v.data, type_info_of(v.id), allocator)
+}
 
-	#partial switch info in ti.variant {
-	case reflect.Type_Info_Integer:
+read_value_ptr :: proc(s: string, data: rawptr, ti: ^runtime.Type_Info, allocator := context.allocator) -> bool {
+	base := runtime.type_info_base(ti)
+
+	#partial switch info in base.variant {
+	case runtime.Type_Info_Integer:
 		n := strconv.parse_i128(s) or_return
-		mem.copy(v.data, &n, ti.size)
-	case reflect.Type_Info_Float:
+		mem.copy(data, &n, base.size)
+	case runtime.Type_Info_Float:
 		f := strconv.parse_f64(s) or_return
-		switch ti.size {
-		case 4: (^f32)(v.data)^ = f32(f)
-		case 8: (^f64)(v.data)^ = f
+		switch base.size {
+		case 2: (^f16)(data)^ = f16(f)
+		case 4: (^f32)(data)^ = f32(f)
+		case 8: (^f64)(data)^ = f
 		case:   return false
 		}
-	case reflect.Type_Info_Boolean:
+	case runtime.Type_Info_Boolean:
+		b: i128
 		switch s {
-		case "true":  (^bool)(v.data)^ = true
-		case "false": (^bool)(v.data)^ = false
+		case "true":  b = 1
+		case "false": b = 0
 		case:         return false
 		}
-	case reflect.Type_Info_Enum:
-		n := reflect.enum_from_name_any(v.id, s) or_return
-		mem.copy(v.data, &n, ti.size)
-	case reflect.Type_Info_String:
+		mem.copy(data, &b, base.size)
+	case runtime.Type_Info_Enum:
+		for name, i in info.names {
+			if name == s {
+				n := i128(info.values[i])
+				mem.copy(data, &n, base.size)
+				return true
+			}
+		}
+		return false
+	case runtime.Type_Info_String:
+		if info.is_cstring {
+			return false
+		}
 		str, allocated, ok := strconv.unquote_string(s, allocator)
 		if !ok {
 			return false
@@ -83,19 +108,33 @@ read_value :: proc(s: string, v: any, allocator := context.allocator) -> bool {
 		if !allocated {
 			str = strings.clone(str, allocator)
 		}
-		(^string)(v.data)^ = str
-	case reflect.Type_Info_Array:
+		(^string)(data)^ = str
+	case runtime.Type_Info_Array:
 		rest := s
 		for i in 0 ..< info.count {
 			part := strings.fields_iterator(&rest) or_return
-			elem := any{rawptr(uintptr(v.data) + uintptr(i * info.elem_size)), info.elem.id}
-			read_value(part, elem, allocator) or_return
+			elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
+			read_value_ptr(part, elem, info.elem, allocator) or_return
 		}
 	case:
 		return false
 	}
 
 	return true
+}
+
+field_index :: proc(s: runtime.Type_Info_Struct, name: string) -> int {
+	for i in 0 ..< int(s.field_count) {
+		if s.names[i] == name {
+			return i
+		}
+	}
+	for i in 0 ..< int(s.field_count) {
+		if reflect.struct_tag_get(reflect.Struct_Tag(s.tags[i]), "was") == name {
+			return i
+		}
+	}
+	return -1
 }
 
 find_field :: proc(id: typeid, name: string) -> reflect.Struct_Field {
