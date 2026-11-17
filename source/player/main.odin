@@ -28,14 +28,6 @@ when BACKEND_NAME == "raylib" {
 
 GAME_DIR :: #config(SKALD_GAME_DIR, "build/debug/games")
 
-when ODIN_OS == .Windows {
-	DLL_EXT :: ".dll"
-} else when ODIN_OS == .Darwin {
-	DLL_EXT :: ".dylib"
-} else {
-	DLL_EXT :: ".so"
-}
-
 Game_API :: struct {
 	init: proc(pf: ^platform.Interface),
 	step: proc(),
@@ -45,20 +37,15 @@ Game_API :: struct {
   	hot_reloaded: proc(mem: rawptr),
 
 	__handle: dynlib.Library,
-
-	mod_time: time.Time,
-  	version: int,
 }
 
 platform_api: platform.Interface
-game: Game_API
-old_games: [dynamic]Game_API
+game: reload.Game(Game_API)
 source_time: time.Time
 build: os.Process
 building: bool
 game_source: string
 game_path: string
-game_lib: string
 
 main :: proc() {
   	if !init() {
@@ -74,14 +61,12 @@ init :: proc() -> bool {
 		game_source = strings.concatenate({"examples/", game_source})
 	}
 	game_path = strings.concatenate({GAME_DIR, "/", filepath.base(game_source)})
-	game_lib = strings.concatenate({game_path, DLL_EXT})
 
   	platform_api = pf
   	platform_api.init(1280, 720, "skald")
 	source_time = newest_source_time()
 
-  	ok: bool
-  	if game, ok = load_game(0); !ok {
+	if !reload.open_game(&game, game_path) {
   		platform_api.shutdown()
   		return false
   	}
@@ -95,7 +80,7 @@ step :: proc() -> bool {
   		return false
   	}
 
-  	if t, err := os.modification_time_by_path(game_lib); err == nil && t != game.mod_time {
+	if reload.library_changed(&game) {
   		reload_game()
   	}
 
@@ -111,53 +96,25 @@ shutdown :: proc() {
 	}
 
   	game.shutdown()
-  	unload_game(game)
-  	for old in old_games {
-  		unload_game(old)
-  	}
-  	delete(old_games)
+	reload.close_game(&game)
 	platform_api.shutdown()
 }
 
-load_game :: proc(version: int) -> (api: Game_API, ok: bool) {
-  	src := game_lib
-  	mod_time, err := os.modification_time_by_path(src)
-  	if err != nil {
-  		fmt.eprintln("no game library at", src)
-  		return
-  	}
-
-  	dst := fmt.tprintf("%s_%d%s", game_path, version, DLL_EXT)
-  	if copy_err := os.copy_file(dst, src); copy_err != nil {
-  		fmt.eprintln("could not copy", src, copy_err)
-  		return
-  	}
-
-  	if _, loaded := dynlib.initialize_symbols(&api, dst, "game_"); !loaded {
-  		fmt.eprintln("could not load", dst, dynlib.last_error())
-  		return
-  	}
-
-  	api.mod_time = mod_time
-  	api.version = version
-  	return api, true
-}
-
 reload_game :: proc() {
-  	new_game, ok := load_game(game.version + 1)
+  	next, mod_time, ok := reload.load_next(&game)
   	if !ok {
   		return
   	}
 
   	memory := game.memory()
   	old_type := game.memory_type()
-  	new_type := new_game.memory_type()
+  	new_type := next.memory_type()
 
   	if reload.layout_hash(new_type) != reload.layout_hash(old_type) {
   		moved, err := mem.alloc(new_type.size, new_type.align)
   		if err != nil {
   			fmt.eprintln("could not allocate the new state:", err)
-  			unload_game(new_game)
+  			reload.discard_next(&game, next)
   			return
   		}
   		reload.migrate(moved, new_type, memory, old_type)
@@ -166,16 +123,10 @@ reload_game :: proc() {
   		fmt.println("state layout changed, moved it over by field name")
   	}
 
-  	append(&old_games, game)
-  	game = new_game
+	reload.replace_game(&game, next, mod_time)
   	game.hot_reloaded(memory)
 
   	fmt.println("reloaded game, version", game.version)
-}
-
-unload_game :: proc(api: Game_API) {
-  	dynlib.unload_library(api.__handle)
-  	os.remove(fmt.tprintf("%s_%d%s", game_path, api.version, DLL_EXT))
 }
 
 newest_source_time :: proc() -> time.Time {
