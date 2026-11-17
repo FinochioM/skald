@@ -283,3 +283,22 @@ test_text_field :: proc(t: ^testing.T) {
 	step(&ctx, {mouse = off, text = "!"}, &b)
 	testing.expect_value(t, strings.to_string(b), "héll")
 }
+
+@(test)
+test_selectable :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	over := [2]f32{PADDING + 2, PADDING + 2}
+	clicks := 0
+	for down in ([]platform.Mouse_Buttons{{}, {.Left}, {}}) {
+		begin(&ctx, {mouse = over, down = down})
+		if selectable(&ctx, "Box 01", false) {
+			clicks += 1
+		}
+		end(&ctx)
+	}
+
+	testing.expect_value(t, clicks, 1)
+}

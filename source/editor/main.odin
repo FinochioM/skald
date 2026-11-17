@@ -13,6 +13,7 @@ import "skald:platform"
 import "skald:reload"
 import "skald:skald"
 import "skald:ui"
+import "skald:scene"
 
 BACKEND_NAME :: #config(SKALD_BACKEND, "raylib")
 
@@ -38,6 +39,9 @@ platform_api: platform.Interface
 game: reload.Game(Game_Types)
 game_path: string
 collections: [dynamic]skald.Collection_Field
+level: Editor_Level
+level_ok: bool
+selected: u64
 
 ctx: ui.Context
 font: platform.Font
@@ -65,6 +69,8 @@ init :: proc() -> bool {
 		return false
 	}
 	collections = skald.find_collections(game.memory_type())
+	level_path := len(os.args) > 2 ? os.args[2] : fmt.tprintf("examples/%s/%s.level", filepath.base(name), filepath.base(name))
+	level_ok = load_level(&level, level_path, collections[:])
 
 	scale := platform_api.dpi_scale()
 	font = ui.load_default_font(&platform_api, ui.DEFAULT_THEME.font_size * scale)
@@ -109,6 +115,7 @@ step :: proc() -> bool {
 shutdown :: proc() {
 	ui.destroy(&ctx)
 	platform_api.unload_font(font)
+	unload_level(&level)
 	delete(collections)
 	reload.close_game(&game)
 	platform_api.shutdown()
@@ -117,8 +124,15 @@ shutdown :: proc() {
 outliner :: proc(r: ui.Rect) {
 	ui.dock(&ctx, "outliner", r)
 
-	for c in collections {
-		ui.label(&ctx, fmt.tprintf("%s  (%s)", c.name, type_name(c.item)))
+	for c in level.collections {
+		name := scene.type_name(c.field.item)
+		ui.label(&ctx, fmt.tprintf("%s  (%s, %d)", c.field.name, name, len(c.items)))
+
+		for item in c.items {
+			if ui.selectable(&ctx, fmt.tprintf("%s %016x", name, item.id), item.id == selected) {
+				selected = item.id
+			}
+		}
 	}
 }
 
@@ -129,6 +143,12 @@ inspector :: proc(r: ui.Rect) {
 console :: proc(r: ui.Rect) {
 	ui.dock(&ctx, "console", r)
 	ui.label(&ctx, fmt.tprintf("opened %s%s, %d collections", game_path, reload.DLL_EXT, len(collections)))
+
+	if !level_ok {
+		ui.label(&ctx, fmt.tprintf("could not read %s", level.path))
+	} else if level.skipped > 0 {
+		ui.label(&ctx, fmt.tprintf("%s: skipped %d items with no collection", level.path, level.skipped))
+	}
 }
 
 type_name :: proc(ti: ^runtime.Type_Info) -> string {

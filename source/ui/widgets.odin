@@ -118,3 +118,19 @@ text_field :: proc(ctx: ^Context, label: string, text: ^strings.Builder) -> (cha
 
 	return
 }
+
+selectable :: proc(ctx: ^Context, text: string, selected: bool) -> (clicked: bool) {
+	id := get_id(ctx, text)
+	text_size := ctx.measure(ctx.font, text, ctx.theme.font_size)
+	r := next_rect(ctx, text_size + 2 * ctx.theme.padding)
+
+	clicked = update_control(ctx, id, r)
+
+	if selected {
+		push_rect(ctx, r, ctx.theme.accent)
+	} else if ctx.hot == id {
+		push_rect(ctx, r, ctx.theme.button_hot)
+	}
+	push_text(ctx, text, r.pos + ctx.theme.padding, ctx.theme.text)
+	return
+}
