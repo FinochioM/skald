@@ -26,6 +26,7 @@ BACKEND :: platform.Interface {
 	dpi_scale = dpi_scale,
 	load_font = load_font,
 	unload_font = unload_font,
+	keys_pressed = keys_pressed,
 }
 
 init :: proc(width, height: int, title: string) {
@@ -195,4 +196,15 @@ get_font :: proc(font: platform.Font, size: f32) -> (rl.Font, f32) {
 	}
 
 	return fonts[i], 0
+}
+
+keys_pressed :: proc() -> platform.Key_Set {
+	pressed: platform.Key_Set
+	for rk, k in KEY_MAP {
+		if rl.IsKeyPressed(rk) || rl.IsKeyPressedRepeat(rk) {
+			pressed += {k}
+		}
+	}
+
+	return pressed
 }

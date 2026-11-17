@@ -1,6 +1,7 @@
 package ui
 
 import "core:testing"
+import "core:strings"
 
 import "skald:platform"
 
@@ -249,4 +250,36 @@ test_dock_stays_below :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, ctx.panel_order[0], get_id(&ctx, "d"))
 	testing.expect_value(t, ctx.panel_order[1], get_id(&ctx, "f"))
+}
+
+@(test)
+test_text_field :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	b := strings.builder_make()
+	defer strings.builder_destroy(&b)
+
+	step :: proc(ctx: ^Context, input: Input, b: ^strings.Builder) {
+		begin(ctx, input)
+		text_field(ctx, "name", b)
+		end(ctx)
+		free_all(context.temp_allocator)
+	}
+
+	on := [2]f32{PADDING + 2, PADDING + 2}
+	off := [2]f32{500, 500}
+
+	step(&ctx, {mouse = on, text = "x"}, &b)
+	testing.expect_value(t, strings.to_string(b), "")
+
+	step(&ctx, {mouse = on, down = {.Left}}, &b)
+	step(&ctx, {mouse = on, text = "héllo"}, &b)
+	step(&ctx, {mouse = on, keys = {.Backspace}}, &b)
+	testing.expect_value(t, strings.to_string(b), "héll")
+
+	step(&ctx, {mouse = off, down = {.Left}}, &b)
+	step(&ctx, {mouse = off, text = "!"}, &b)
+	testing.expect_value(t, strings.to_string(b), "héll")
 }

@@ -2,6 +2,7 @@ package ui_demo
 
 import "base:runtime"
 import "core:fmt"
+import "core:strings"
 
 import "skald:skald"
 import "skald:ui"
@@ -16,6 +17,7 @@ State :: struct {
 	volume: f32,
 	list_panel: Rect,
 	big: bool,
+	name: strings.Builder,
 	left_split: f32,
 	right_split: f32,
 	bottom_split: f32,
@@ -44,7 +46,12 @@ game_step :: proc() {
 		rescale(scale)
 	}
 
-	ui.begin(ctx, {mouse = pf.mouse_position(), down = pf.mouse_down()})
+	ui.begin(ctx, {
+		mouse = pf.mouse_position(),
+		down = pf.mouse_down(),
+		text = pf.text_input(),
+		keys = pf.keys_pressed(),
+	})
 
 	size := pf.screen_size()
 	screen := Rect{{0, 0}, {f32(size.x), f32(size.y)}}
@@ -72,6 +79,7 @@ game_step :: proc() {
 @(export)
 game_shutdown :: proc() {
 	ui.destroy(&state.ui)
+	strings.builder_destroy(&state.name)
 	state.pf.unload_font(state.font)
 	free(state)
 }
@@ -125,6 +133,9 @@ viewport :: proc(ctx: ^ui.Context, r: Rect) {
 
 inspector :: proc(ctx: ^ui.Context, r: Rect) {
 	ui.dock(ctx, "inspector", r)
+
+	ui.text_field(ctx, "name", &state.name)
+	ui.label(ctx, fmt.tprintf("hello, %s", strings.to_string(state.name)))
 
 	{
 		ui.row(ctx)

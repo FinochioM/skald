@@ -14,6 +14,8 @@ Rect :: struct {
 Input :: struct {
 	mouse: [2]f32,
 	down: platform.Mouse_Buttons,
+	text: string,
+	keys: platform.Key_Set,
 }
 
 Draw_Rect :: struct {
@@ -82,6 +84,10 @@ Context :: struct {
 	clips: [dynamic]Rect,
 	drag_offset: [2]f32,
 
+	focus: Id,
+	text: string,
+	keys: platform.Key_Set,
+
 	panels: [dynamic]Panel_Range,
 	panel_order: [dynamic]Id,
 	panel: Id,
@@ -117,6 +123,13 @@ begin :: proc(ctx: ^Context, input: Input) {
 	ctx.mouse_released = ctx.mouse_down - input.down
 	ctx.mouse_down = input.down
 	ctx.mouse = input.mouse
+
+	ctx.text = input.text
+	ctx.keys = input.keys
+
+	if .Left in ctx.mouse_pressed {
+		ctx.focus = 0
+	}
 
 	ctx.hot = ctx.next_hot
 	ctx.next_hot = 0
@@ -287,7 +300,7 @@ update_control :: proc(ctx: ^Context, id: Id, r: Rect) -> (clicked: bool) {
 		ctx.next_hot = id
 	}
 
-	if ctx.hot == id && .Left in ctx.mouse_pressed {
+	if ctx.hot == id && over && .Left in ctx.mouse_pressed {
 		ctx.active = id
 	}
 

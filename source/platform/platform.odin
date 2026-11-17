@@ -10,6 +10,7 @@ Interface :: struct #all_or_none {
 
 	frame_time: proc() -> f64,
 	keys_down: proc() -> Key_Set,
+	keys_pressed: proc() -> Key_Set,
 	screen_size: proc() -> [2]int,
 
 	mouse_position: proc() -> [2]f32,

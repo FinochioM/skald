@@ -26,6 +26,7 @@ BACKEND :: platform.Interface {
 	dpi_scale = dpi_scale,
 	load_font = load_font,
 	unload_font = unload_font,
+	keys_pressed = keys_pressed,
 }
 
 @(private)
@@ -95,3 +96,6 @@ load_font :: proc(data: []u8, size: f32) -> platform.Font {
 }
 
 unload_font :: proc(font: platform.Font) {}
+keys_pressed :: proc() -> platform.Key_Set {
+	return {}
+}

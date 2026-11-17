@@ -7,6 +7,7 @@ Theme :: struct {
 	padding: f32,
 	spacing: f32,
 	slider_width: f32,
+    field_width: f32,
 
 	text: platform.Color,
 	button: platform.Color,
@@ -22,6 +23,7 @@ DEFAULT_THEME :: Theme {
 	padding = 8,
 	spacing = 6,
 	slider_width = 200,
+    field_width = 200,
 
 	text = {220, 220, 225, 255},
 	button = {60, 60, 70, 255},
@@ -35,6 +37,7 @@ DEFAULT_THEME :: Theme {
 set_scale :: proc(ctx: ^Context, font: platform.Font, scale: f32, theme := DEFAULT_THEME) {
 	ctx.font = font
 	ctx.scale = scale
+    ctx.theme.field_width *= scale
 
 	ctx.theme = theme
 	ctx.theme.font_size *= scale
