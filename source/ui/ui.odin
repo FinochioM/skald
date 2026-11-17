@@ -64,7 +64,8 @@ Measure_Text :: proc(font: platform.Font, text: string, size: f32) -> [2]f32
 Context :: struct {
 	measure: Measure_Text,
 	font: platform.Font,
-	font_size: f32,
+	theme: Theme,
+	scale: f32,
 
 	mouse: [2]f32,
 	mouse_down: platform.Mouse_Buttons,
@@ -87,14 +88,9 @@ Context :: struct {
 	commands: [dynamic]Command,
 }
 
-PADDING :: 8
-SPACING :: 6
-
-init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_size: f32, allocator := context.allocator) {
+init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, scale: f32, allocator := context.allocator) {
 	ctx^ = {
 		measure = measure,
-		font = font,
-		font_size = font_size,
 		id_stack = make([dynamic]Id, allocator),
 		layouts = make([dynamic]Layout, allocator),
 		clips = make([dynamic]Rect, allocator),
@@ -102,6 +98,8 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, font_siz
 		panels = make([dynamic]Panel_Range, allocator),
 		panel_order = make([dynamic]Id, allocator),
 	}
+
+	set_scale(ctx, font, scale)
 }
 
 destroy :: proc(ctx: ^Context) {
@@ -128,7 +126,7 @@ begin :: proc(ctx: ^Context, input: Input) {
 	clear(&ctx.clips)
 	clear(&ctx.panels)
 	ctx.panel = 0
-	append(&ctx.layouts, Layout{.Column, PADDING, PADDING, PADDING})
+	append(&ctx.layouts, Layout{.Column, ctx.theme.padding, ctx.theme.padding, ctx.theme.padding})
 }
 
 end :: proc(ctx: ^Context) {
@@ -237,9 +235,9 @@ next_rect :: proc(ctx: ^Context, size: [2]f32) -> Rect {
 
 	switch l.dir {
 	case .Column:
-		l.cursor.y += size.y + SPACING
+		l.cursor.y += size.y + ctx.theme.spacing
 	case .Row:
-		l.cursor.x += size.x + SPACING
+		l.cursor.x += size.x + ctx.theme.spacing
 	}
 	l.extent = {max(l.extent.x, r.pos.x + size.x), max(l.extent.y, r.pos.y + size.y)}
 
@@ -299,7 +297,7 @@ push_rect :: proc(ctx: ^Context, r: Rect, color: platform.Color) {
 }
 
 push_text :: proc(ctx: ^Context, text: string, pos: [2]f32, color: platform.Color) {
-	append(&ctx.commands, Draw_Text{ctx.font, text, pos, ctx.font_size, color})
+	append(&ctx.commands, Draw_Text{ctx.font, text, pos, ctx.theme.font_size, color})
 }
 
 rect_intersect :: proc(a, b: Rect) -> Rect {

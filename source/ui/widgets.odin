@@ -4,46 +4,39 @@ import "core:fmt"
 
 import "skald:platform"
 
-TEXT_COLOR :: platform.Color{220, 220, 225, 255}
-BUTTON_COLOR :: platform.Color{60, 60, 70, 255}
-BUTTON_HOT :: platform.Color{75, 75, 90, 255}
-BUTTON_ACTIVE :: platform.Color{45, 45, 55, 255}
-ACCENT_COLOR :: platform.Color{90, 140, 220, 255}
-SLIDER_WIDTH :: 200
-
 label :: proc(ctx: ^Context, text: string) {
-	size := ctx.measure(ctx.font, text, ctx.font_size)
+	size := ctx.measure(ctx.font, text, ctx.theme.font_size)
 	r := next_rect(ctx, size)
-	push_text(ctx, text, r.pos, TEXT_COLOR)
+	push_text(ctx, text, r.pos, ctx.theme.text)
 }
 
 button :: proc(ctx: ^Context, text: string) -> bool {
 	id := get_id(ctx, text)
-	text_size := ctx.measure(ctx.font, text, ctx.font_size)
-	r := next_rect(ctx, text_size + 2 * PADDING)
+	text_size := ctx.measure(ctx.font, text, ctx.theme.font_size)
+	r := next_rect(ctx, text_size + 2 * ctx.theme.padding)
 
 	clicked := update_control(ctx, id, r)
 
 	push_rect(ctx, r, control_color(ctx, id))
-	push_text(ctx, text, r.pos + PADDING, TEXT_COLOR)
+	push_text(ctx, text, r.pos + ctx.theme.padding, ctx.theme.text)
 	return clicked
 }
 
 @(private)
 control_color :: proc(ctx: ^Context, id: Id) -> platform.Color {
 	if ctx.active == id {
-		return BUTTON_ACTIVE
+		return ctx.theme.button_active
 	} else if ctx.hot == id {
-		return BUTTON_HOT
+		return ctx.theme.button_hot
 	}
-	return BUTTON_COLOR
+	return ctx.theme.button
 }
 
 checkbox :: proc(ctx: ^Context, text: string, value: ^bool) -> (changed: bool) {
 	id := get_id(ctx, text)
-	box := ctx.font_size
-	text_size := ctx.measure(ctx.font, text, ctx.font_size)
-	r := next_rect(ctx, {box + SPACING + text_size.x, max(box, text_size.y)})
+	box := ctx.theme.font_size
+	text_size := ctx.measure(ctx.font, text, ctx.theme.font_size)
+	r := next_rect(ctx, {box + ctx.theme.spacing + text_size.x, max(box, text_size.y)})
 
 	if update_control(ctx, id, r) {
 		value^ = !value^
@@ -52,15 +45,15 @@ checkbox :: proc(ctx: ^Context, text: string, value: ^bool) -> (changed: bool) {
 
 	push_rect(ctx, {r.pos, box}, control_color(ctx, id))
 	if value^ {
-		push_rect(ctx, {r.pos + box / 4, box / 2}, ACCENT_COLOR)
+		push_rect(ctx, {r.pos + box / 4, box / 2}, ctx.theme.accent)
 	}
-	push_text(ctx, text, r.pos + {box + SPACING, 0}, TEXT_COLOR)
+	push_text(ctx, text, r.pos + {box + ctx.theme.spacing, 0}, ctx.theme.text)
 	return
 }
 
 slider :: proc(ctx: ^Context, text: string, value: ^f32, lo, hi: f32) -> (changed: bool) {
 	id := get_id(ctx, text)
-	r := next_rect(ctx, {SLIDER_WIDTH, ctx.font_size + 2 * PADDING})
+	r := next_rect(ctx, {ctx.theme.slider_width, ctx.theme.font_size + 2 * ctx.theme.padding})
 
 	update_control(ctx, id, r)
 	if ctx.active == id {
@@ -72,7 +65,7 @@ slider :: proc(ctx: ^Context, text: string, value: ^f32, lo, hi: f32) -> (change
 
 	fill := clamp((value^ - lo) / (hi - lo), 0, 1)
 	push_rect(ctx, r, control_color(ctx, id))
-	push_rect(ctx, {r.pos, {r.size.x * fill, r.size.y}}, ACCENT_COLOR)
-	push_text(ctx, fmt.tprintf("%s: %.2f", text, value^), r.pos + PADDING, TEXT_COLOR)
+	push_rect(ctx, {r.pos, {r.size.x * fill, r.size.y}}, ctx.theme.accent)
+	push_text(ctx, fmt.tprintf("%s: %.2f", text, value^), r.pos + ctx.theme.padding, ctx.theme.text)
 	return
 }

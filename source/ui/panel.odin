@@ -1,16 +1,11 @@
 package ui
 
-import "skald:platform"
-
-PANEL_COLOR :: platform.Color{36, 36, 42, 255}
-TITLE_COLOR :: platform.Color{52, 52, 62, 255}
-
 begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect) {
 	assert(ctx.panel == 0, "panels don't nest")
 	push_id(ctx, title)
 	ctx.panel = ctx.id_stack[len(ctx.id_stack) - 1]
 
-	title_h := ctx.font_size + 2 * PADDING
+	title_h := ctx.theme.font_size + 2 * ctx.theme.padding
 	bar := Rect{rect.pos, {rect.size.x, title_h}}
 
 	id := get_id(ctx, "title bar")
@@ -25,14 +20,14 @@ begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect) {
 
     append(&ctx.panels, Panel_Range{ctx.panel, rect^, len(ctx.commands), 0})
 
-	push_rect(ctx, rect^, PANEL_COLOR)
-	push_rect(ctx, bar, ctx.active == id ? ACCENT_COLOR : TITLE_COLOR)
-	push_text(ctx, title, bar.pos + PADDING, TEXT_COLOR)
+	push_rect(ctx, rect^, ctx.theme.panel)
+	push_rect(ctx, bar, ctx.active == id ? ctx.theme.accent : ctx.theme.title)
+	push_text(ctx, title, bar.pos + ctx.theme.padding, ctx.theme.text)
 
 	content := Rect{rect.pos + {0, title_h}, rect.size - {0, title_h}}
 	push_clip(ctx, content)
 
-	start := content.pos + PADDING
+	start := content.pos + ctx.theme.padding
 	append(&ctx.layouts, Layout{.Column, start, start, start})
 }
 

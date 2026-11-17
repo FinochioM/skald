@@ -5,6 +5,13 @@ import "core:testing"
 import "skald:platform"
 
 @(private="file")
+PADDING :: DEFAULT_THEME.padding
+@(private="file")
+SPACING :: DEFAULT_THEME.spacing
+@(private="file")
+SLIDER_WIDTH :: DEFAULT_THEME.slider_width
+
+@(private="file")
 fake_measure :: proc(font: platform.Font, text: string, size: f32) -> [2]f32 {
 	return {f32(len(text)) * size * 0.5, size}
 }
@@ -20,7 +27,7 @@ frame :: proc(ctx: ^Context, mouse: [2]f32, down: platform.Mouse_Buttons) -> (cl
 @(test)
 test_button_click :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	over := [2]f32{PADDING + 2, PADDING + 2}
@@ -38,7 +45,7 @@ test_button_click :: proc(t: ^testing.T) {
 @(test)
 test_ids :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	a := get_id(&ctx, "ok")
@@ -53,7 +60,7 @@ test_ids :: proc(t: ^testing.T) {
 @(test)
 test_row_layout :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	begin(&ctx, {})
@@ -74,7 +81,7 @@ test_row_layout :: proc(t: ^testing.T) {
 @(test)
 test_checkbox_and_slider :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	on: bool
@@ -106,7 +113,7 @@ test_checkbox_and_slider :: proc(t: ^testing.T) {
 @(test)
 test_panel_drag :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	r := Rect{{100, 100}, {200, 150}}
@@ -127,7 +134,7 @@ test_panel_drag :: proc(t: ^testing.T) {
 @(test)
 test_panel_clips_input :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	r := Rect{{100, 100}, {200, 40}}
@@ -148,7 +155,7 @@ test_panel_clips_input :: proc(t: ^testing.T) {
 @(test)
 test_panel_front :: proc(t: ^testing.T) {
 	ctx: Context
-	init(&ctx, fake_measure, 0, 16)
+	init(&ctx, fake_measure, 0, 1)
 	defer destroy(&ctx)
 
 	a := Rect{{0, 0}, {200, 200}}
@@ -178,4 +185,18 @@ test_panel_front :: proc(t: ^testing.T) {
 	testing.expect_value(t, ctx.panel_order[len(ctx.panel_order) - 1], get_id(&ctx, "a"))
 
 	testing.expect(t, click(&ctx, on_button, &a, &b))
+}
+
+@(test)
+test_scale :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 2)
+	defer destroy(&ctx)
+
+	begin(&ctx, {})
+	r := next_rect(&ctx, {10, 10})
+	end(&ctx)
+
+	testing.expect_value(t, ctx.theme.font_size, 32)
+	testing.expect_value(t, r.pos, [2]f32{PADDING * 2, PADDING * 2})
 }

@@ -6,8 +6,6 @@ import "core:fmt"
 import "skald:skald"
 import "skald:ui"
 
-TEXT_SIZE :: 16
-
 Rect :: ui.Rect
 State :: struct {
 	pf: ^skald.Platform,
@@ -18,6 +16,7 @@ State :: struct {
 	volume: f32,
 	main_panel: Rect,
 	list_panel: Rect,
+	big: bool,
 }
 
 state: ^State
@@ -27,9 +26,9 @@ game_init :: proc(pf: ^skald.Platform) {
 	state = new(State)
 	state.pf = pf
 
-	size := TEXT_SIZE * pf.dpi_scale()
-	state.font = ui.load_default_font(pf, size)
-	ui.init(&state.ui, pf.measure_text, state.font, size)
+	scale := pf.dpi_scale()
+	state.font = ui.load_default_font(pf, ui.DEFAULT_THEME.font_size * scale)
+	ui.init(&state.ui, pf.measure_text, state.font, scale)
 
 	place_panels()
 }
@@ -38,6 +37,10 @@ game_init :: proc(pf: ^skald.Platform) {
 game_step :: proc() {
 	pf := state.pf
 	ctx := &state.ui
+
+	if scale := pf.dpi_scale() * (state.big ? 2 : 1); scale != ctx.scale {
+		rescale(scale)
+	}
 
 	ui.begin(ctx, {mouse = pf.mouse_position(), down = pf.mouse_down()})
 
@@ -100,6 +103,8 @@ main_panel :: proc(ctx: ^ui.Context) {
 		ui.label(ctx, fmt.tprintf("clicked %d times", state.clicks))
 	}
 
+	ui.checkbox(ctx, "2x (fake 200%)", &state.big)
+
 	ui.checkbox(ctx, "show extra", &state.show_extra)
 	if state.show_extra {
 		ui.slider(ctx, "volume", &state.volume, 0, 1)
@@ -112,5 +117,21 @@ list_panel :: proc(ctx: ^ui.Context) {
 
 	for i in 0 ..< 20 {
 		ui.label(ctx, fmt.tprintf("item %d", i))
+	}
+}
+
+rescale :: proc(scale: f32) {
+	pf := state.pf
+	old := state.ui.scale
+
+	pf.unload_font(state.font)
+	state.font = ui.load_default_font(pf, ui.DEFAULT_THEME.font_size * scale)
+	ui.set_scale(&state.ui, state.font, scale)
+
+	if old > 0 {
+		for r in ([]^Rect{&state.main_panel, &state.list_panel}) {
+			r.pos *= scale / old
+			r.size *= scale / old
+		}
 	}
 }
