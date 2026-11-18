@@ -16,6 +16,7 @@ Input :: struct {
 	down: platform.Mouse_Buttons,
 	text: string,
 	keys: platform.Key_Set,
+	wheel: [2]f32,
 }
 
 Draw_Rect :: struct {
@@ -87,11 +88,13 @@ Context :: struct {
 	focus: Id,
 	text: string,
 	keys: platform.Key_Set,
+	wheel: [2]f32,
 
 	panels: [dynamic]Panel_Range,
 	panel_order: [dynamic]Id,
 	panel: Id,
 	hover_panel: Id,
+	scroll: map[Id]f32,
 	commands: [dynamic]Command,
 }
 
@@ -104,6 +107,7 @@ init :: proc(ctx: ^Context, measure: Measure_Text, font: platform.Font, scale: f
 		commands = make([dynamic]Command, allocator),
 		panels = make([dynamic]Panel_Range, allocator),
 		panel_order = make([dynamic]Id, allocator),
+		scroll = make(map[Id]f32, allocator),
 	}
 
 	set_scale(ctx, font, scale)
@@ -116,6 +120,7 @@ destroy :: proc(ctx: ^Context) {
 	delete(ctx.commands)
 	delete(ctx.panels)
 	delete(ctx.panel_order)
+	delete(ctx.scroll)
 }
 
 begin :: proc(ctx: ^Context, input: Input) {
@@ -126,6 +131,8 @@ begin :: proc(ctx: ^Context, input: Input) {
 
 	ctx.text = input.text
 	ctx.keys = input.keys
+
+	ctx.wheel = input.wheel
 
 	if .Left in ctx.mouse_pressed {
 		ctx.focus = 0

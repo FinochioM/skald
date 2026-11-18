@@ -1,5 +1,7 @@
 package ui
 
+SCROLL_LINES :: 3
+
 begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect, docked := false) {
 	assert(ctx.panel == 0, "panels don't nest")
 	push_id(ctx, title)
@@ -30,16 +32,39 @@ begin_panel :: proc(ctx: ^Context, title: string, rect: ^Rect, docked := false) 
 	content := Rect{rect.pos + {0, title_h}, rect.size - {0, title_h}}
 	push_clip(ctx, content)
 
-	start := content.pos + ctx.theme.padding
+	scroll := ctx.scroll[ctx.panel]
+	if ctx.hover_panel == ctx.panel {
+		scroll = max(scroll - ctx.wheel.y * SCROLL_LINES * (ctx.theme.font_size + ctx.theme.spacing), 0)
+		ctx.scroll[ctx.panel] = scroll
+	}
+
+	start := content.pos + ctx.theme.padding - {0, scroll}
 	append(&ctx.layouts, Layout{.Column, start, start, start})
 }
 
 end_panel :: proc(ctx: ^Context) {
-	pop(&ctx.layouts)
+	l := pop(&ctx.layouts)
+	p := &ctx.panels[len(ctx.panels) - 1]
+
+	title_h := ctx.theme.font_size + 2 * ctx.theme.padding
+	view := p.rect.size.y - title_h
+	used := l.extent.y - l.start.y + 2 * ctx.theme.padding
+	scroll := clamp(ctx.scroll[ctx.panel], 0, max(used - view, 0))
+	ctx.scroll[ctx.panel] = scroll
+
+	if used > view {
+		w := 4 * ctx.scale
+		thumb := Rect{
+			{p.rect.pos.x + p.rect.size.x - w, p.rect.pos.y + title_h + view * scroll / used},
+			{w, view * view / used},
+		}
+		push_rect(ctx, thumb, ctx.theme.button_hot)
+	}
+
 	pop_clip(ctx)
 	pop_id(ctx)
 
-	ctx.panels[len(ctx.panels) - 1].last = len(ctx.commands)
+	p.last = len(ctx.commands)
 	ctx.panel = 0
 }
 

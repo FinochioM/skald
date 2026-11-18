@@ -302,3 +302,38 @@ test_selectable :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, clicks, 1)
 }
+
+@(private="file")
+scroll_frame :: proc(ctx: ^Context, wheel: [2]f32) -> (first: f32) {
+	begin(ctx, {mouse = {50, 50}, wheel = wheel})
+	begin_dock(ctx, "d", {{0, 0}, {100, 100}})
+	first = next_rect(ctx, {10, 10}).pos.y
+	for _ in 1 ..< 50 {
+		next_rect(ctx, {10, 10})
+	}
+	end_dock(ctx)
+	end(ctx)
+	return
+}
+
+@(test)
+test_dock_scroll :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	top := scroll_frame(&ctx, {})
+	testing.expect(t, scroll_frame(&ctx, {0, -1}) < top)
+
+	for _ in 0 ..< 100 {
+		scroll_frame(&ctx, {0, -1})
+	}
+	bottom := scroll_frame(&ctx, {})
+
+	title_h := DEFAULT_THEME.font_size + 2 * PADDING
+	used := 50 * 10 + 49 * SPACING + 2 * PADDING
+	testing.expect_value(t, top - bottom, used - (100 - title_h))
+
+	scroll_frame(&ctx, {0, 1000})
+	testing.expect_value(t, scroll_frame(&ctx, {}), top)
+}

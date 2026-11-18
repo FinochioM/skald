@@ -88,6 +88,7 @@ step :: proc() -> bool {
 		down = platform_api.mouse_down(),
 		text = platform_api.text_input(),
 		keys = platform_api.keys_pressed(),
+		wheel = platform_api.mouse_wheel(),
 	})
 
 	size := platform_api.screen_size()
