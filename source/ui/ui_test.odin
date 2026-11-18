@@ -337,3 +337,22 @@ test_dock_scroll :: proc(t: ^testing.T) {
 	scroll_frame(&ctx, {0, 1000})
 	testing.expect_value(t, scroll_frame(&ctx, {}), top)
 }
+
+@(test)
+test_drag :: proc(t: ^testing.T) {
+	ctx: Context
+	init(&ctx, fake_measure, 0, 1)
+	defer destroy(&ctx)
+
+	value: f64 = 5
+	at := [2]f32{PADDING + 2, PADDING + 2}
+	moves := [][2]f32{at, at, at + {10, 0}, at + {10, 0}, at + {40, 0}}
+	downs := []platform.Mouse_Buttons{{}, {.Left}, {.Left}, {}, {}}
+	for mouse, i in moves {
+		begin(&ctx, {mouse = mouse, down = downs[i]})
+		drag(&ctx, "v", &value, 0.5)
+		end(&ctx)
+	}
+
+	testing.expect_value(t, value, 10)
+}

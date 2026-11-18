@@ -22,6 +22,7 @@ Editor_Level :: struct {
 	path: string,
 	collections: []Level_Collection,
 	skipped: int,
+	dirty: bool,
 }
 
 load_level :: proc(lvl: ^Editor_Level, path: string, fields: []skald.Collection_Field) -> bool {

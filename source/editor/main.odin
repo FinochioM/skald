@@ -155,15 +155,21 @@ inspector :: proc(r: ui.Rect) {
 			continue
 		}
 
-		value := strings.builder_make(context.temp_allocator)
-		scene.write_value_ptr(&value, rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i])
-		ui.label(&ctx, fmt.tprintf("%s  %s", s.names[i], strings.to_string(value)))
+		ui.row(&ctx)
+		ui.label(&ctx, s.names[i])
+		if edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i]) {
+			level.dirty = true
+		}
 	}
 }
 
 console :: proc(r: ui.Rect) {
 	ui.dock(&ctx, "console", r)
 	ui.label(&ctx, fmt.tprintf("opened %s%s, %d collections", game_path, reload.DLL_EXT, len(collections)))
+
+	if level.dirty {
+		ui.label(&ctx, fmt.tprintf("%s modified", level.path))
+	}
 
 	if !level_ok {
 		ui.label(&ctx, fmt.tprintf("could not read %s", level.path))

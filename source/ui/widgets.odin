@@ -134,3 +134,26 @@ selectable :: proc(ctx: ^Context, text: string, selected: bool) -> (clicked: boo
 	push_text(ctx, text, r.pos + ctx.theme.padding, ctx.theme.text)
 	return
 }
+
+drag :: proc(ctx: ^Context, label: string, value: ^f64, step: f64 = 1, format := "%v") -> (changed: bool) {
+	id := get_id(ctx, label)
+	r := next_rect(ctx, {ctx.theme.slider_width / 2, ctx.theme.font_size + 2 * ctx.theme.padding})
+
+	update_control(ctx, id, r)
+	if ctx.active == id {
+		if .Left in ctx.mouse_pressed {
+			ctx.drag_offset = ctx.mouse
+		}
+		if dx := ctx.mouse.x - ctx.drag_offset.x; dx != 0 {
+			value^ += f64(dx) * step
+			changed = true
+		}
+		ctx.drag_offset = ctx.mouse
+	}
+
+	push_rect(ctx, r, control_color(ctx, id))
+	push_clip(ctx, r)
+	push_text(ctx, fmt.tprintf(format, value^), r.pos + ctx.theme.padding, ctx.theme.text)
+	pop_clip(ctx)
+	return
+}
