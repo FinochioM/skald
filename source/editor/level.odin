@@ -69,3 +69,14 @@ find_level_collection :: proc(lvl: ^Editor_Level, type_name: string) -> ^Level_C
 	}
 	return nil
 }
+
+find_item :: proc(lvl: ^Editor_Level, id: u64) -> (^Level_Collection, ^Item) {
+	for &c in lvl.collections {
+		for &item in c.items {
+			if item.id == id {
+				return &c, &item
+			}
+		}
+	}
+	return nil, nil
+}

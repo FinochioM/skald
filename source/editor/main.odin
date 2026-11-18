@@ -6,6 +6,7 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:reflect"
 
 import "skald:backend_nil"
 import "skald:backend_raylib"
@@ -139,6 +140,25 @@ outliner :: proc(r: ui.Rect) {
 
 inspector :: proc(r: ui.Rect) {
 	ui.dock(&ctx, "inspector", r)
+
+	c, item := find_item(&level, selected)
+	if item == nil {
+		return
+	}
+
+	ti := c.field.item
+	ui.label(&ctx, fmt.tprintf("%s %016x", scene.type_name(ti), item.id))
+
+	s := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
+	for i in 0 ..< int(s.field_count) {
+		if reflect.struct_tag_get(reflect.Struct_Tag(s.tags[i]), "scene") == "-" {
+			continue
+		}
+
+		value := strings.builder_make(context.temp_allocator)
+		scene.write_value_ptr(&value, rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i])
+		ui.label(&ctx, fmt.tprintf("%s  %s", s.names[i], strings.to_string(value)))
+	}
 }
 
 console :: proc(r: ui.Rect) {
