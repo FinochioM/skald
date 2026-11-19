@@ -116,7 +116,7 @@ step :: proc() -> bool {
 
 	ui.end(&ctx)
 
-	if ctx.active == 0 {
+	if ctx.active == 0 && ctx.focus == 0 {
 		settle(&level)
 	}
 

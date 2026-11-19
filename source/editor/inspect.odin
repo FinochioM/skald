@@ -47,14 +47,57 @@ edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info) -> (chan
 			elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
 			changed |= edit_value(fmt.tprint(i), elem, info.elem)
 		}
+	case runtime.Type_Info_Enum:
+		changed = edit_enum(label, data, info, base.size)
+	case runtime.Type_Info_String:
+		if info.is_cstring {
+			ui.label(&ctx, "cstring")
+			break
+		}
+		text := strings.builder_make(context.temp_allocator)
+		strings.write_string(&text, (^string)(data)^)
+		if ui.text_field(&ctx, label, &text) {
+			(^string)(data)^ = strings.clone(strings.to_string(text), level.allocator)
+			changed = true
+		}
 	case:
-		// todo enums, strings
+		// todo slices, unions, bit_sets, nested structs
 		text := strings.builder_make(context.temp_allocator)
 		scene.write_value_ptr(&text, data, ti)
 		ui.label(&ctx, strings.to_string(text))
 	}
 
 	return
+}
+
+@(private="file")
+edit_enum :: proc(label: string, data: rawptr, info: runtime.Type_Info_Enum, size: int) -> bool {
+	if len(info.values) == 0 {
+		return false
+	}
+
+	signed := false
+	if i, ok := runtime.type_info_base(info.base).variant.(runtime.Type_Info_Integer); ok {
+		signed = i.signed
+	}
+
+	current := runtime.Type_Info_Enum_Value(scene.int_value(data, size, signed))
+	index := 0
+	for v, i in info.values {
+		if v == current {
+			index = i
+		}
+	}
+
+	ui.push_id(&ctx, label)
+	defer ui.pop_id(&ctx)
+	if !ui.button(&ctx, info.names[index]) {
+		return false
+	}
+
+	next := i128(info.values[(index + 1) % len(info.values)])
+	mem.copy(data, &next, size)
+	return true
 }
 
 @(private="file")
