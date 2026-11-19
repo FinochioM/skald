@@ -3,6 +3,7 @@ package main
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:slice"
 
 import "skald:scene"
 import "skald:skald"
@@ -80,4 +81,25 @@ find_item :: proc(lvl: ^Editor_Level, id: u64) -> (^Level_Collection, ^Item) {
 		}
 	}
 	return nil, nil
+}
+
+save_level :: proc(lvl: ^Editor_Level) -> bool {
+	sb := strings.builder_make(context.temp_allocator)
+
+	for c in lvl.collections {
+		zero := make([]byte, c.field.item.size, context.temp_allocator)
+		order := slice.clone(c.items[:], context.temp_allocator)
+		slice.sort_by_key(order, proc(item: Item) -> u64 { return item.id })
+
+		for item in order {
+			scene.write_item_ptr(&sb, item.id, raw_data(item.data), c.field.item, raw_data(zero))
+		}
+	}
+
+	if err := os.write_entire_file(lvl.path, strings.to_string(sb)); err != nil {
+		return false
+	}
+
+	lvl.dirty = false
+	return true
 }

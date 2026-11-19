@@ -43,6 +43,8 @@ collections: [dynamic]skald.Collection_Field
 level: Editor_Level
 level_ok: bool
 selected: u64
+status_buf: [256]byte
+status: string
 
 ctx: ui.Context
 font: platform.Font
@@ -91,6 +93,10 @@ step :: proc() -> bool {
 		keys = platform_api.keys_pressed(),
 		wheel = platform_api.mouse_wheel(),
 	})
+
+	if .Left_Control in platform_api.keys_down() && .S in ctx.keys {
+		save()
+	}
 
 	size := platform_api.screen_size()
 	screen := ui.Rect{{0, 0}, {f32(size.x), f32(size.y)}}
@@ -167,6 +173,10 @@ console :: proc(r: ui.Rect) {
 	ui.dock(&ctx, "console", r)
 	ui.label(&ctx, fmt.tprintf("opened %s%s, %d collections", game_path, reload.DLL_EXT, len(collections)))
 
+	if status != "" {
+		ui.label(&ctx, status)
+	}
+
 	if level.dirty {
 		ui.label(&ctx, fmt.tprintf("%s modified", level.path))
 	}
@@ -183,4 +193,14 @@ type_name :: proc(ti: ^runtime.Type_Info) -> string {
 		return named.name
 	}
 	return "?"
+}
+
+save :: proc() {
+	if !level_ok {
+		status = fmt.bprintf(status_buf[:], "not saving, %s didn't load", level.path)
+	} else if save_level(&level) {
+		status = fmt.bprintf(status_buf[:], "saved %s", level.path)
+	} else {
+		status = fmt.bprintf(status_buf[:], "could not write %s", level.path)
+	}
 }
