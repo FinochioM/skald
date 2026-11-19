@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ran=0
-for p in skald scene reload platform ui; do
+for p in skald scene reload platform ui editor; do
   if ls "source/$p"/*.odin >/dev/null 2>&1; then
     echo "== test source/$p"
     odin test "source/$p" -vet -collection:skald=source

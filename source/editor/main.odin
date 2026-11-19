@@ -7,6 +7,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:reflect"
+import "core:slice"
 
 import "skald:backend_nil"
 import "skald:backend_raylib"
@@ -94,8 +95,12 @@ step :: proc() -> bool {
 		wheel = platform_api.mouse_wheel(),
 	})
 
-	if .Left_Control in platform_api.keys_down() && .S in ctx.keys {
-		save()
+	if .Left_Control in platform_api.keys_down() {
+		switch {
+		case .S in ctx.keys: save()
+		case .Z in ctx.keys: undo(&level)
+		case .Y in ctx.keys: redo(&level)
+		}
 	}
 
 	size := platform_api.screen_size()
@@ -110,6 +115,10 @@ step :: proc() -> bool {
 	ui.push_rect(&ctx, view, {16, 16, 20, 255})
 
 	ui.end(&ctx)
+
+	if ctx.active == 0 {
+		settle(&level)
+	}
 
 	platform_api.begin_frame()
 	platform_api.clear({24, 24, 28, 255})
@@ -155,6 +164,9 @@ inspector :: proc(r: ui.Rect) {
 	ti := c.field.item
 	ui.label(&ctx, fmt.tprintf("%s %016x", scene.type_name(ti), item.id))
 
+	before := slice.clone(item.data, context.temp_allocator)
+	changed := false
+
 	s := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
 	for i in 0 ..< int(s.field_count) {
 		if reflect.struct_tag_get(reflect.Struct_Tag(s.tags[i]), "scene") == "-" {
@@ -163,9 +175,12 @@ inspector :: proc(r: ui.Rect) {
 
 		ui.row(&ctx)
 		ui.label(&ctx, s.names[i])
-		if edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i]) {
-			level.dirty = true
-		}
+		changed |= edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i])
+	}
+
+	if changed {
+		level.dirty = true
+		touch(&level, item.id, before)
 	}
 }
 

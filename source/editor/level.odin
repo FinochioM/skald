@@ -24,11 +24,14 @@ Editor_Level :: struct {
 	collections: []Level_Collection,
 	skipped: int,
 	dirty: bool,
+	history: History,
 }
 
 load_level :: proc(lvl: ^Editor_Level, path: string, fields: []skald.Collection_Field) -> bool {
 	skald.level_init(&lvl.memory)
 	lvl.path = strings.clone(path, lvl.allocator)
+
+	lvl.history.edits = make([dynamic]Edit, lvl.allocator)
 
 	lvl.collections = make([]Level_Collection, len(fields), lvl.allocator)
 	for f, i in fields {
