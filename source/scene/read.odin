@@ -28,12 +28,7 @@ read_struct_ptr :: proc(text: string, ptr: rawptr, ti: ^runtime.Type_Info, alloc
 			return false
 		}
 
-		i := field_index(s, name)
-		if i < 0 {
-			continue
-		}
-
-		if !read_value_ptr(value, rawptr(uintptr(ptr) + s.offsets[i]), s.types[i], allocator) {
+		if !read_field(ptr, s, name, value, allocator) {
 			return false
 		}
 	}
@@ -116,6 +111,8 @@ read_value_ptr :: proc(s: string, data: rawptr, ti: ^runtime.Type_Info, allocato
 			elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
 			read_value_ptr(part, elem, info.elem, allocator) or_return
 		}
+	case runtime.Type_Info_Union:
+		return read_union(s, data, info, base.size)
 	case runtime.Type_Info_Bit_Set:
 		if !strings.has_prefix(s, "{") || !strings.has_suffix(s, "}") {
 			return false
@@ -178,4 +175,31 @@ bit_set_elem_value :: proc(info: runtime.Type_Info_Bit_Set, name: string) -> (i6
 		}
 	}
 	return strconv.parse_i64(name)
+}
+
+@(private)
+read_field :: proc(ptr: rawptr, s: runtime.Type_Info_Struct, name, value: string, allocator: runtime.Allocator) -> bool {
+	head, dot, tail := strings.partition(name, ".")
+	i := field_index(s, head)
+	if i < 0 {
+		return true
+	}
+
+	field := rawptr(uintptr(ptr) + s.offsets[i])
+	if dot == "" {
+		return read_value_ptr(value, field, s.types[i], allocator)
+	}
+
+	u, is_union := runtime.type_info_base(s.types[i]).variant.(runtime.Type_Info_Union)
+	if !is_union {
+		return true
+	}
+	v := union_variant(field, u)
+	if v == nil {
+		return false
+	}
+	if inner, is_struct := runtime.type_info_base(v).variant.(runtime.Type_Info_Struct); is_struct {
+		return read_field(field, inner, tail, value, allocator)
+	}
+	return tail == "value" && read_value_ptr(value, field, v, allocator)
 }

@@ -62,7 +62,6 @@ test_edit_widgets :: proc(t: ^testing.T) {
 	ui.end(&ctx)
 	testing.expect_value(t, hp, 10)
 
-
 	Flag :: enum {
 		Fire = 1,
 		Ice = 3,

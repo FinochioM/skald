@@ -10,7 +10,7 @@ write_struct :: proc(sb: ^strings.Builder, v: any, defaults: any = nil, indent :
 	write_struct_ptr(sb, v.data, type_info_of(v.id), defaults.data, indent)
 }
 
-write_struct_ptr :: proc(sb: ^strings.Builder, data: rawptr, ti: ^runtime.Type_Info, defaults: rawptr = nil, indent := "") {
+write_struct_ptr :: proc(sb: ^strings.Builder, data: rawptr, ti: ^runtime.Type_Info, defaults: rawptr = nil, indent := "", prefix := "") {
 	s, ok := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
 	if !ok {
 		return
@@ -25,8 +25,14 @@ write_struct_ptr :: proc(sb: ^strings.Builder, data: rawptr, ti: ^runtime.Type_I
 		if defaults != nil && values_equal_ptr(field, rawptr(uintptr(defaults) + s.offsets[i]), s.types[i]) {
 			continue
 		}
+		
+		if u, is_union := runtime.type_info_base(s.types[i]).variant.(runtime.Type_Info_Union); is_union {
+			def := defaults == nil ? nil : rawptr(uintptr(defaults) + s.offsets[i])
+			write_union_field(sb, field, u, def, indent, fmt.tprintf("%s%s", prefix, s.names[i]))
+			continue
+		}
 
-		fmt.sbprintf(sb, "%s%s = ", indent, s.names[i])
+		fmt.sbprintf(sb, "%s%s%s = ", indent, prefix, s.names[i])
 		write_value_ptr(sb, field, s.types[i])
 		strings.write_byte(sb, '\n')
 	}
@@ -42,8 +48,17 @@ write_item_ptr :: proc(sb: ^strings.Builder, id: u64, data: rawptr, ti: ^runtime
 }
 
 type_name :: proc(ti: ^runtime.Type_Info) -> string {
-	if named, ok := ti.variant.(runtime.Type_Info_Named); ok {
-		return named.name
+	#partial switch info in ti.variant {
+	case runtime.Type_Info_Named:
+		return info.name
+	case runtime.Type_Info_Integer:
+		return fmt.tprintf("%s%d", info.signed ? "i" : "u", ti.size * 8)
+	case runtime.Type_Info_Float:
+		return fmt.tprintf("f%d", ti.size * 8)
+	case runtime.Type_Info_Boolean:
+		return "bool"
+	case runtime.Type_Info_String:
+		return "string"
 	}
 	return "?"
 }
@@ -98,7 +113,6 @@ write_value_ptr :: proc(sb: ^strings.Builder, data: rawptr, ti: ^runtime.Type_In
 		}
 		strings.write_byte(sb, '}')
 	case:
-		// todo slices, unions, bit_sets, nested structs, cstrings
 		fmt.sbprintf(sb, "?%s", type_name(ti))
 	}
 }
@@ -115,6 +129,8 @@ values_equal_ptr :: proc(a, b: rawptr, ti: ^runtime.Type_Info) -> bool {
 		if !info.is_cstring {
 			return (^string)(a)^ == (^string)(b)^
 		}
+	case runtime.Type_Info_Union:
+		return unions_equal(a, b, info)
 	case runtime.Type_Info_Array:
 		for i in 0 ..< info.count {
 			offset := uintptr(i * info.elem_size)

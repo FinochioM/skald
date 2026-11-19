@@ -100,3 +100,50 @@ test_bit_sets :: proc(t: ^testing.T) {
 	testing.expect(t, read_struct(strings.to_string(sb), &back, Thing))
 	testing.expect_value(t, back, v)
 }
+
+@(test)
+test_unions :: proc(t: ^testing.T) {
+	Circle :: struct {
+		radius: f32,
+		filled: bool,
+	}
+	Rect :: struct {
+		size: [2]f32,
+	}
+	Thing :: struct {
+		shape: union {
+			Circle,
+			Rect,
+		},
+		amount: union {
+			int,
+			f32,
+		},
+		empty: union {
+			Circle,
+		},
+	}
+
+	v := Thing{shape = Circle{radius = 3}, amount = f32(1.5)}
+
+	sb := strings.builder_make()
+	defer strings.builder_destroy(&sb)
+	write_struct(&sb, v, Thing{})
+	testing.expect_value(t, strings.to_string(sb), "shape = Circle\nshape.radius = 3\namount = f32\namount.value = 1.5\n")
+
+	back: Thing
+	testing.expect(t, read_struct(strings.to_string(sb), &back, Thing))
+	testing.expect_value(t, back, v)
+
+	defaults := Thing{shape = Circle{radius = 3, filled = true}}
+	strings.builder_reset(&sb)
+	write_struct(&sb, Thing{shape = Circle{radius = 5, filled = true}}, defaults)
+	testing.expect_value(t, strings.to_string(sb), "shape = Circle\nshape.radius = 5\n")
+
+	back = defaults
+	testing.expect(t, read_struct(strings.to_string(sb), &back, Thing))
+	testing.expect_value(t, back.shape.(Circle), Circle{radius = 5, filled = true})
+
+	fresh: Thing
+	testing.expect(t, !read_struct("shape.radius = 1\n", &fresh, Thing))
+}
