@@ -9,14 +9,15 @@ import "core:strings"
 import "skald:scene"
 import "skald:ui"
 
-edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info) -> (changed: bool) {
+edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info, tag: Inspect_Tag = {}) -> (changed: bool) {
 	base := runtime.type_info_base(ti)
+	step := tag.ranged ? (tag.hi - tag.lo) / 100 : 1
 
 	#partial switch info in base.variant {
 	case runtime.Type_Info_Integer:
 		v := f64(scene.int_value(data, base.size, info.signed))
-		if ui.drag(&ctx, label, &v, 1, "%.0f") {
-			n := i128(math.round(v))
+		if ui.drag(&ctx, label, &v, max(step, 1), "%.0f") {
+			n := i128(math.round(clamp_to(v, tag)))
 			if !info.signed {
 				n = max(n, 0)
 			}
@@ -43,6 +44,10 @@ edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info) -> (chan
 	case runtime.Type_Info_Array:
 		ui.push_id(&ctx, label)
 		defer ui.pop_id(&ctx)
+        elem_tag := tag
+		if tag.color {
+			elem_tag = color_channels(data, info, tag)
+		}
 		for i in 0 ..< info.count {
 			elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
 			changed |= edit_value(fmt.tprint(i), elem, info.elem)
@@ -98,6 +103,32 @@ edit_enum :: proc(label: string, data: rawptr, info: runtime.Type_Info_Enum, siz
 	next := i128(info.values[(index + 1) % len(info.values)])
 	mem.copy(data, &next, size)
 	return true
+}
+
+@(private="file")
+clamp_to :: proc(v: f64, tag: Inspect_Tag) -> f64 {
+	return tag.ranged ? clamp(v, tag.lo, tag.hi) : v
+}
+
+@(private="file")
+color_channels :: proc(data: rawptr, info: runtime.Type_Info_Array, tag: Inspect_Tag) -> Inspect_Tag {
+	_, is_float := runtime.type_info_base(info.elem).variant.(runtime.Type_Info_Float)
+	top := is_float ? 1.0 : 255.0
+
+	c := [4]u8{0, 0, 0, 255}
+	for i in 0 ..< min(info.count, 4) {
+		elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
+		v := is_float ? float_value(elem, info.elem_size) : f64(scene.int_value(elem, info.elem_size, false))
+		c[i] = u8(clamp(v / top, 0, 1) * 255)
+	}
+	h := ctx.theme.font_size + 2 * ctx.theme.padding
+	ui.push_rect(&ctx, ui.next_rect(&ctx, {h, h}), c)
+
+	channels := Inspect_Tag{ranged = true, lo = 0, hi = top}
+	if tag.ranged {
+		channels.lo, channels.hi = tag.lo, tag.hi
+	}
+	return channels
 }
 
 @(private="file")

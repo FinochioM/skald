@@ -169,13 +169,15 @@ inspector :: proc(r: ui.Rect) {
 
 	s := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
 	for i in 0 ..< int(s.field_count) {
-		if reflect.struct_tag_get(reflect.Struct_Tag(s.tags[i]), "scene") == "-" {
+		field_tag := reflect.Struct_Tag(s.tags[i])
+		tag := parse_inspect_tag(reflect.struct_tag_get(field_tag, "inspect"))
+		if tag.hide || reflect.struct_tag_get(field_tag, "scene") == "-" {
 			continue
 		}
 
 		ui.row(&ctx)
 		ui.label(&ctx, s.names[i])
-		changed |= edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i])
+		changed |= edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i], tag)
 	}
 
 	if changed {

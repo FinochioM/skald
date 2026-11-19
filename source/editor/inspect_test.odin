@@ -19,7 +19,7 @@ frame :: proc(input: ui.Input, data: rawptr, ti: ^runtime.Type_Info) -> bool {
 }
 
 @(test)
-test_edit_enum_and_string :: proc(t: ^testing.T) {
+test_edit_widgets :: proc(t: ^testing.T) {
 	ui.init(&ctx, measure, 0, 1)
 	defer ui.destroy(&ctx)
 
@@ -48,4 +48,26 @@ test_edit_enum_and_string :: proc(t: ^testing.T) {
 	testing.expect_value(t, s, "ab")
 	testing.expect(t, frame({mouse = at, text = "z"}, &s, type_info_of(string)))
 	testing.expect_value(t, s, "abz")
+
+	tag := Inspect_Tag{ranged = true, lo = 0, hi = 10}
+	hp := 5
+	ui.begin(&ctx, {mouse = at})
+	edit_value("hp", &hp, type_info_of(int), tag)
+	ui.end(&ctx)
+	ui.begin(&ctx, {mouse = at, down = {.Left}})
+	edit_value("hp", &hp, type_info_of(int), tag)
+	ui.end(&ctx)
+	ui.begin(&ctx, {mouse = at + {500, 0}, down = {.Left}})
+	edit_value("hp", &hp, type_info_of(int), tag)
+	ui.end(&ctx)
+	testing.expect_value(t, hp, 10)
+}
+
+@(test)
+test_parse_inspect_tag :: proc(t: ^testing.T) {
+	testing.expect_value(t, parse_inspect_tag("range=0,100"), Inspect_Tag{ranged = true, lo = 0, hi = 100})
+	testing.expect_value(t, parse_inspect_tag("hide"), Inspect_Tag{hide = true})
+	testing.expect_value(t, parse_inspect_tag("color range=-1,1"), Inspect_Tag{color = true, ranged = true, lo = -1, hi = 1})
+	testing.expect_value(t, parse_inspect_tag("range=5,1"), Inspect_Tag{})
+	testing.expect_value(t, parse_inspect_tag(""), Inspect_Tag{})
 }
