@@ -116,6 +116,24 @@ read_value_ptr :: proc(s: string, data: rawptr, ti: ^runtime.Type_Info, allocato
 			elem := rawptr(uintptr(data) + uintptr(i * info.elem_size))
 			read_value_ptr(part, elem, info.elem, allocator) or_return
 		}
+	case runtime.Type_Info_Bit_Set:
+		if !strings.has_prefix(s, "{") || !strings.has_suffix(s, "}") {
+			return false
+		}
+		bits: i128
+		rest := s[1:len(s) - 1]
+		for part in strings.split_iterator(&rest, ",") {
+			name := strings.trim_space(part)
+			if name == "" {
+				continue
+			}
+			b := (bit_set_elem_value(info, name) or_return) - info.lower
+			if b < 0 || b >= i64(base.size * 8) {
+				return false
+			}
+			bits |= 1 << uint(b)
+		}
+		mem.copy(data, &bits, base.size)
 	case:
 		return false
 	}
@@ -148,4 +166,16 @@ find_field :: proc(id: typeid, name: string) -> reflect.Struct_Field {
 		}
 	}
 	return {}
+}
+
+@(private)
+bit_set_elem_value :: proc(info: runtime.Type_Info_Bit_Set, name: string) -> (i64, bool) {
+	if e, is_enum := runtime.type_info_base(info.elem).variant.(runtime.Type_Info_Enum); is_enum {
+		for n, i in e.names {
+			if n == name {
+				return i64(e.values[i]), true
+			}
+		}
+	}
+	return strconv.parse_i64(name)
 }

@@ -75,3 +75,28 @@ test_items_from_type_info :: proc(t: ^testing.T) {
 	defer delete(back.name)
 	testing.expect_value(t, back, e)
 }
+
+@(test)
+test_bit_sets :: proc(t: ^testing.T) {
+	Flag :: enum {
+		Fire = 1,
+		Ice = 3,
+		Wind = 4,
+	}
+	Thing :: struct {
+		flags: bit_set[Flag; u8],
+		lanes: bit_set[2 ..= 9],
+		none: bit_set[Flag],
+	}
+
+	v := Thing{flags = {.Fire, .Wind}, lanes = {2, 9}}
+
+	sb := strings.builder_make()
+	defer strings.builder_destroy(&sb)
+	write_struct(&sb, v)
+	testing.expect_value(t, strings.to_string(sb), "flags = {Fire, Wind}\nlanes = {2, 9}\nnone = {}\n")
+
+	back: Thing
+	testing.expect(t, read_struct(strings.to_string(sb), &back, Thing))
+	testing.expect_value(t, back, v)
+}

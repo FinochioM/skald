@@ -54,6 +54,8 @@ edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info, tag: Ins
 		}
 	case runtime.Type_Info_Enum:
 		changed = edit_enum(label, data, info, base.size)
+	case runtime.Type_Info_Bit_Set:
+		changed = edit_bit_set(label, data, info, base.size)
 	case runtime.Type_Info_String:
 		if info.is_cstring {
 			ui.label(&ctx, "cstring")
@@ -139,4 +141,30 @@ float_value :: proc(data: rawptr, size: int) -> f64 {
 	case 8: return (^f64)(data)^
 	}
 	return 0
+}
+
+@(private="file")
+edit_bit_set :: proc(label: string, data: rawptr, info: runtime.Type_Info_Bit_Set, size: int) -> (changed: bool) {
+	bits := scene.int_value(data, size, false)
+
+	ui.push_id(&ctx, label)
+	defer ui.pop_id(&ctx)
+	for v in info.lower ..= min(info.upper, info.lower + i64(size * 8) - 1) {
+		name, ok := scene.bit_set_elem_name(info, v)
+		if !ok {
+			continue
+		}
+
+		bit := i128(1) << uint(v - info.lower)
+		on := bits & bit != 0
+		if ui.checkbox(&ctx, name, &on) {
+			bits ~= bit
+			changed = true
+		}
+	}
+
+	if changed {
+		mem.copy(data, &bits, size)
+	}
+	return
 }

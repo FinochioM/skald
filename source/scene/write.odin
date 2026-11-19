@@ -81,6 +81,22 @@ write_value_ptr :: proc(sb: ^strings.Builder, data: rawptr, ti: ^runtime.Type_In
 			}
 			write_value_ptr(sb, rawptr(uintptr(data) + uintptr(i * info.elem_size)), info.elem)
 		}
+	case runtime.Type_Info_Bit_Set:
+		bits := int_value(data, base.size, false)
+		strings.write_byte(sb, '{')
+		first := true
+		for b in 0 ..< base.size * 8 {
+			if (bits >> uint(b)) & 1 == 0 {
+				continue
+			}
+			if !first {
+				strings.write_string(sb, ", ")
+			}
+			first = false
+			name, _ := bit_set_elem_name(info, info.lower + i64(b))
+			strings.write_string(sb, name)
+		}
+		strings.write_byte(sb, '}')
 	case:
 		// todo slices, unions, bit_sets, nested structs, cstrings
 		fmt.sbprintf(sb, "?%s", type_name(ti))
@@ -137,4 +153,16 @@ enum_name :: proc(data: rawptr, info: runtime.Type_Info_Enum, size: int) -> (str
 		}
 	}
 	return "", false
+}
+
+bit_set_elem_name :: proc(info: runtime.Type_Info_Bit_Set, v: i64) -> (name: string, ok: bool) {
+	if e, is_enum := runtime.type_info_base(info.elem).variant.(runtime.Type_Info_Enum); is_enum {
+		for value, i in e.values {
+			if i64(value) == v {
+				return e.names[i], true
+			}
+		}
+		return fmt.tprint(v), false
+	}
+	return fmt.tprint(v), true
 }

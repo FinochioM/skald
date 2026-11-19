@@ -61,6 +61,18 @@ test_edit_widgets :: proc(t: ^testing.T) {
 	edit_value("hp", &hp, type_info_of(int), tag)
 	ui.end(&ctx)
 	testing.expect_value(t, hp, 10)
+
+
+	Flag :: enum {
+		Fire = 1,
+		Ice = 3,
+	}
+	flags := bit_set[Flag]{.Ice}
+	frame({mouse = at}, &flags, type_info_of(type_of(flags))) // releases the hp drag
+	frame({mouse = at}, &flags, type_info_of(type_of(flags)))
+	frame({mouse = at, down = {.Left}}, &flags, type_info_of(type_of(flags)))
+	testing.expect(t, frame({mouse = at}, &flags, type_info_of(type_of(flags))))
+	testing.expect_value(t, flags, bit_set[Flag]{.Fire, .Ice})
 }
 
 @(test)
