@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:strings"
+import "core:reflect"
 
 import "skald:scene"
 import "skald:ui"
@@ -56,6 +57,8 @@ edit_value :: proc(label: string, data: rawptr, ti: ^runtime.Type_Info, tag: Ins
 		changed = edit_enum(label, data, info, base.size)
 	case runtime.Type_Info_Bit_Set:
 		changed = edit_bit_set(label, data, info, base.size)
+	case runtime.Type_Info_Union:
+		changed = edit_union(label, data, info, base.size)
 	case runtime.Type_Info_String:
 		if info.is_cstring {
 			ui.label(&ctx, "cstring")
@@ -165,6 +168,54 @@ edit_bit_set :: proc(label: string, data: rawptr, info: runtime.Type_Info_Bit_Se
 
 	if changed {
 		mem.copy(data, &bits, size)
+	}
+	return
+}
+
+edit_struct :: proc(data: rawptr, ti: ^runtime.Type_Info) -> (changed: bool) {
+	s, ok := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
+	if !ok {
+		return
+	}
+
+	for i in 0 ..< int(s.field_count) {
+		field_tag := reflect.Struct_Tag(s.tags[i])
+		tag := parse_inspect_tag(reflect.struct_tag_get(field_tag, "inspect"))
+		if tag.hide || reflect.struct_tag_get(field_tag, "scene") == "-" {
+			continue
+		}
+
+		ui.row(&ctx)
+		ui.label(&ctx, s.names[i])
+		changed |= edit_value(s.names[i], rawptr(uintptr(data) + s.offsets[i]), s.types[i], tag)
+	}
+	return
+}
+
+@(private="file")
+edit_union :: proc(label: string, data: rawptr, info: runtime.Type_Info_Union, size: int) -> (changed: bool) {
+	ui.push_id(&ctx, label)
+	defer ui.pop_id(&ctx)
+	ui.column(&ctx)
+
+	index := scene.union_index(data, info)
+	if ui.button(&ctx, index < 0 ? "nil" : scene.type_name(info.variants[index])) {
+		index += 1
+		if index == len(info.variants) {
+			index = info.no_nil ? 0 : -1
+		}
+		scene.set_union_index(data, info, index, size)
+		changed = true
+	}
+	if index < 0 {
+		return
+	}
+
+	v := info.variants[index]
+	if _, is_struct := runtime.type_info_base(v).variant.(runtime.Type_Info_Struct); is_struct {
+		changed |= edit_struct(data, v)
+	} else {
+		changed |= edit_value("value", data, v)
 	}
 	return
 }

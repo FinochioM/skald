@@ -6,7 +6,6 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
-import "core:reflect"
 import "core:slice"
 
 import "skald:backend_nil"
@@ -165,20 +164,7 @@ inspector :: proc(r: ui.Rect) {
 	ui.label(&ctx, fmt.tprintf("%s %016x", scene.type_name(ti), item.id))
 
 	before := slice.clone(item.data, context.temp_allocator)
-	changed := false
-
-	s := runtime.type_info_base(ti).variant.(runtime.Type_Info_Struct)
-	for i in 0 ..< int(s.field_count) {
-		field_tag := reflect.Struct_Tag(s.tags[i])
-		tag := parse_inspect_tag(reflect.struct_tag_get(field_tag, "inspect"))
-		if tag.hide || reflect.struct_tag_get(field_tag, "scene") == "-" {
-			continue
-		}
-
-		ui.row(&ctx)
-		ui.label(&ctx, s.names[i])
-		changed |= edit_value(s.names[i], rawptr(uintptr(raw_data(item.data)) + s.offsets[i]), s.types[i], tag)
-	}
+	changed := edit_struct(raw_data(item.data), ti)
 
 	if changed {
 		level.dirty = true

@@ -72,6 +72,18 @@ test_edit_widgets :: proc(t: ^testing.T) {
 	frame({mouse = at, down = {.Left}}, &flags, type_info_of(type_of(flags)))
 	testing.expect(t, frame({mouse = at}, &flags, type_info_of(type_of(flags))))
 	testing.expect_value(t, flags, bit_set[Flag]{.Fire, .Ice})
+
+	Circle :: struct {
+		radius: f32,
+	}
+	shape: union {
+		Circle,
+		int,
+	}
+	frame({mouse = at}, &shape, type_info_of(type_of(shape)))
+	frame({mouse = at, down = {.Left}}, &shape, type_info_of(type_of(shape)))
+	testing.expect(t, frame({mouse = at}, &shape, type_info_of(type_of(shape))))
+	testing.expect_value(t, shape.(Circle), Circle{})
 }
 
 @(test)
