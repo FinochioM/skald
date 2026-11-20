@@ -1,0 +1,22 @@
+Player 660b90a37e6e1d0e
+  pos = 887.33496 600
+  size = 28 40
+  speed = 386
+  jump = 842
+  color = 230 95 80 255
+Platform 8c428a3a67b86a4a
+  pos = 0 640
+  size = 1280 80
+  color = 70 80 100 255
+Platform ae1c8661d457c239
+  pos = 900 320
+  size = 200 24
+  color = 70 80 100 255
+Platform d014eac0c1720703
+  pos = 300 520
+  size = 200 24
+  color = 70 80 100 255
+Platform dc5f7271ddc20dfe
+  pos = 600 420
+  size = 200 24
+  color = 70 80 100 255
