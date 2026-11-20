@@ -1,22 +1,47 @@
-Player 660b90a37e6e1d0e
-  pos = 887.33496 600
+Player 955d3293d73464a8
+  pos = 100 400
   size = 28 40
-  speed = 386
-  jump = 842
-  color = 230 95 80 255
-Platform 8c428a3a67b86a4a
-  pos = 0 640
-  size = 1280 80
-  color = 70 80 100 255
-Platform ae1c8661d457c239
+  speed = 280
+  jump = 700
+  color = 240 200 80 255
+Platform 00f0d84c101a16c2
   pos = 900 320
   size = 200 24
   color = 70 80 100 255
-Platform d014eac0c1720703
-  pos = 300 520
-  size = 200 24
+Platform 379b9c0d819e9c3e
+  pos = 0 640
+  size = 1280 80
   color = 70 80 100 255
-Platform dc5f7271ddc20dfe
+Platform 8dbcc888a51c980b
   pos = 600 420
   size = 200 24
   color = 70 80 100 255
+Platform fb80858941a1483e
+  pos = 300 520
+  size = 200 24
+  color = 70 80 100 255
+Coin 2b12261f9c28135b
+  pos = 690 380
+  value = 1
+Coin 67e91d9a70a5839a
+  pos = 990 280
+  value = 5
+Coin b4adb0e35f9d3ffb
+  pos = 390 480
+  value = 1
+Enemy 48234ebfc0f738f9
+  name = "walker"
+  pos = 600 612
+  flags = {Deadly, Bouncy}
+  move = Patrol
+  move.left = 500
+  move.right = 860
+  move.speed = 90
+Enemy 55b7748d4684d6c1
+  name = "flier"
+  pos = 1150 200
+  kind = Bat
+  flags = {Deadly}
+  move = Hover
+  move.height = 60
+  move.period = 2

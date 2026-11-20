@@ -4,6 +4,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:strings"
+import "core:math"
 
 import "skald:skald"
 
@@ -32,6 +33,52 @@ Platform :: struct {
 	color: skald.Color `inspect:"color"`,
 }
 
+Coin :: struct {
+	pos: [2]f32,
+	value: int `inspect:"range=1,100"`,
+
+	taken: bool `scene:"-"`,
+}
+
+Enemy_Kind :: enum {
+	Slime,
+	Bat,
+}
+
+Enemy_Flag :: enum {
+	Deadly,
+	Bouncy,
+}
+
+Patrol :: struct {
+	left, right: f32,
+	speed: f32 `inspect:"range=0,400"`,
+}
+
+Hover :: struct {
+	height: f32 `inspect:"range=0,300"`,
+	period: f32 `inspect:"range=0.2,10"`,
+}
+
+Enemy :: struct {
+	name: string,
+	pos: [2]f32,
+	kind: Enemy_Kind,
+	flags: bit_set[Enemy_Flag],
+	move: union {
+		Patrol,
+		Hover,
+	},
+
+	start: [2]f32 `scene:"-"`,
+	prev_pos: [2]f32 `scene:"-"`,
+	dir: f32 `scene:"-"`,
+	time: f32 `scene:"-"`,
+}
+
+COIN_SIZE :: 16
+ENEMY_SIZE :: 28
+
 Action :: enum {
 	Left,
 	Right,
@@ -53,8 +100,12 @@ State :: struct {
 	level: ^skald.Level,
 	players: skald.Collection(Player),
 	platforms: skald.Collection(Platform),
+	coins: skald.Collection(Coin),
+	enemies: skald.Collection(Enemy),
 	accumulator: f64,
 	input: skald.Input,
+	score: int,
+	dead: bool,
 }
 
 state: ^State
@@ -82,10 +133,21 @@ game_step :: proc() {
 			save_level()
 		}
 
+        eit := skald.make_iterator(&state.enemies)
+        for e in skald.iterate(&eit) {
+            tick_enemy(e)
+        }
+
 		it := skald.make_iterator(&state.players)
 		for p in skald.iterate(&it) {
 			tick_player(p)
+            touch_things(p)
 		}
+
+        if state.dead {
+            unload_level()
+            load_level()
+        }
 
 		skald.input_consume(&state.input)
 		state.accumulator -= TICK_DT
@@ -96,6 +158,19 @@ game_step :: proc() {
 	pf.begin_frame()
 	pf.clear({24, 26, 34, 255})
 
+	cit := skald.make_iterator(&state.coins)
+	for c in skald.iterate(&cit) {
+		if !c.taken {
+			pf.draw_rect(c.pos, COIN_SIZE, {250, 210, 60, 255})
+		}
+	}
+
+	eit := skald.make_iterator(&state.enemies)
+	for e in skald.iterate(&eit) {
+		color := e.kind == .Slime ? skald.Color{90, 200, 110, 255} : skald.Color{160, 100, 220, 255}
+		pf.draw_rect(e.prev_pos + (e.pos - e.prev_pos) * alpha, ENEMY_SIZE, color)
+	}
+
 	pit := skald.make_iterator(&state.platforms)
 	for p in skald.iterate(&pit) {
 		pf.draw_rect(p.pos, p.size, p.color)
@@ -105,6 +180,8 @@ game_step :: proc() {
 	for p in skald.iterate(&it) {
 		pf.draw_rect(p.prev_pos + (p.pos - p.prev_pos) * alpha, p.size, p.color)
 	}
+
+	pf.draw_text(skald.DEFAULT_FONT, fmt.tprintf("score %d", state.score), {20, 20}, 24, {255, 255, 255, 255})
 
 	pf.end_frame()
 	free_all(context.temp_allocator)
@@ -186,30 +263,53 @@ first_level :: proc() {
 	skald.add(&state.platforms, Platform{pos = {300, 520}, size = {200, 24}, color = GROUND})
 	skald.add(&state.platforms, Platform{pos = {600, 420}, size = {200, 24}, color = GROUND})
 	skald.add(&state.platforms, Platform{pos = {900, 320}, size = {200, 24}, color = GROUND})
+
+	skald.add(&state.coins, Coin{pos = {390, 480}, value = 1})
+	skald.add(&state.coins, Coin{pos = {690, 380}, value = 1})
+	skald.add(&state.coins, Coin{pos = {990, 280}, value = 5})
+
+	skald.add(&state.enemies, Enemy{
+		name = "walker", pos = {600, 612}, kind = .Slime, flags = {.Deadly, .Bouncy},
+		move = Patrol{left = 500, right = 860, speed = 90},
+	})
+	skald.add(&state.enemies, Enemy{
+		name = "flier", pos = {1150, 200}, kind = .Bat, flags = {.Deadly},
+		move = Hover{height = 60, period = 2},
+	})
 }
 
 load_level :: proc() {
 	skald.level_init(state.level)
 	state.players = skald.make_collection(Player, state.level.allocator)
 	state.platforms = skald.make_collection(Platform, state.level.allocator)
+	state.coins = skald.make_collection(Coin, state.level.allocator)
+	state.enemies = skald.make_collection(Enemy, state.level.allocator)
+	state.score = 0
+	state.dead = false
 
 	data, err := os.read_entire_file(LEVEL_PATH, context.temp_allocator)
 	if err != nil {
 		first_level()
 		save_level()
-		return
-	}
-
-	text := string(data)
-	ok := skald.load_collection(&state.players, text, Player{}, state.level.allocator)
-	ok &&= skald.load_collection(&state.platforms, text, Platform{}, state.level.allocator)
-	if !ok {
-		fmt.eprintln("bad level file:", LEVEL_PATH)
+	} else {
+		text := string(data)
+		a := state.level.allocator
+		ok := skald.load_collection(&state.players, text, Player{}, a)
+		ok &&= skald.load_collection(&state.platforms, text, Platform{}, a)
+		ok &&= skald.load_collection(&state.coins, text, Coin{}, a)
+		ok &&= skald.load_collection(&state.enemies, text, Enemy{}, a)
+		if !ok {
+			fmt.eprintln("bad level file:", LEVEL_PATH)
+		}
 	}
 
 	it := skald.make_iterator(&state.players)
 	for p in skald.iterate(&it) {
 		p.prev_pos = p.pos
+	}
+	eit := skald.make_iterator(&state.enemies)
+	for e in skald.iterate(&eit) {
+		e.start, e.prev_pos = e.pos, e.pos
 	}
 }
 
@@ -217,6 +317,9 @@ save_level :: proc() {
 	sb := strings.builder_make(context.temp_allocator)
 	skald.save_collection(&sb, &state.players, Player{})
 	skald.save_collection(&sb, &state.platforms, Platform{})
+
+	skald.save_collection(&sb, &state.coins, Coin{})
+	skald.save_collection(&sb, &state.enemies, Enemy{})
 
 	_ = os.make_directory_all(LEVEL_DIR)
 	if err := os.write_entire_file(LEVEL_PATH, strings.to_string(sb)); err != nil {
@@ -228,4 +331,51 @@ unload_level :: proc() {
 	skald.level_destroy(state.level)
 	state.players = {}
 	state.platforms = {}
+}
+
+tick_enemy :: proc(e: ^Enemy) {
+	e.prev_pos = e.pos
+	e.time += TICK_DT
+
+	switch m in e.move {
+	case Patrol:
+		if e.dir == 0 {
+			e.dir = 1
+		}
+		e.pos.x += e.dir * m.speed * TICK_DT
+		if e.pos.x > m.right {
+			e.pos.x, e.dir = m.right, -1
+		} else if e.pos.x < m.left {
+			e.pos.x, e.dir = m.left, 1
+		}
+	case Hover:
+		if m.period > 0 {
+			e.pos.y = e.start.y + math.sin(e.time * math.TAU / m.period) * m.height
+		}
+	}
+}
+
+touch_things :: proc(p: ^Player) {
+	cit := skald.make_iterator(&state.coins)
+	for c in skald.iterate(&cit) {
+		if !c.taken && overlaps(p.pos, p.size, c.pos, COIN_SIZE) {
+			c.taken = true
+			state.score += c.value
+		}
+	}
+
+	eit := skald.make_iterator(&state.enemies)
+	for e in skald.iterate(&eit) {
+		if !overlaps(p.pos, p.size, e.pos, ENEMY_SIZE) {
+			continue
+		}
+
+		from_above := p.vel.y > 0 && p.prev_pos.y + p.size.y <= e.prev_pos.y
+		if .Bouncy in e.flags && from_above {
+			p.pos.y = e.pos.y - p.size.y
+			p.vel.y = -p.jump
+		} else if .Deadly in e.flags {
+			state.dead = true
+		}
+	}
 }
