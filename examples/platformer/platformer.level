@@ -33,15 +33,8 @@ Enemy 48234ebfc0f738f9
   name = "walker"
   pos = 600 612
   flags = {Deadly, Bouncy}
-  move = Patrol
-  move.left = 500
-  move.right = 860
-  move.speed = 90
 Enemy 55b7748d4684d6c1
   name = "flier"
   pos = 1150 200
   kind = Bat
   flags = {Deadly}
-  move = Hover
-  move.height = 60
-  move.period = 2

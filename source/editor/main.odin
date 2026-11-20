@@ -61,19 +61,12 @@ main :: proc() {
 }
 
 init :: proc() -> bool {
-	name := len(os.args) > 1 ? strings.trim_right(os.args[1], "/\\") : "boxes"
-	game_path = strings.concatenate({GAME_DIR, "/", filepath.base(name)})
-
 	platform_api = pf
 	platform_api.init(1280, 720, "skald editor")
 
-	if !reload.open_game(&game, game_path) {
-		platform_api.shutdown()
-		return false
+	if len(os.args) > 1 {
+		open_project(filepath.base(strings.trim_right(os.args[1], "/\\")))
 	}
-	collections = skald.find_collections(game.memory_type())
-	level_path := len(os.args) > 2 ? os.args[2] : fmt.tprintf("examples/%s/%s.level", filepath.base(name), filepath.base(name))
-	level_ok = load_level(&level, level_path, collections[:])
 
 	scale := platform_api.dpi_scale()
 	font = ui.load_default_font(&platform_api, ui.DEFAULT_THEME.font_size * scale)
@@ -93,25 +86,14 @@ step :: proc() -> bool {
 		keys = platform_api.keys_pressed(),
 		wheel = platform_api.mouse_wheel(),
 	})
-
-	if .Left_Control in platform_api.keys_down() {
-		switch {
-		case .S in ctx.keys: save()
-		case .Z in ctx.keys: undo(&level)
-		case .Y in ctx.keys: redo(&level)
-		}
-	}
-
 	size := platform_api.screen_size()
 	screen := ui.Rect{{0, 0}, {f32(size.x), f32(size.y)}}
-	left, rest := ui.split(&ctx, "left split", screen, .Row, &left_split)
-	center, right := ui.split(&ctx, "right split", rest, .Row, &right_split)
-	view, bottom := ui.split(&ctx, "bottom split", center, .Column, &bottom_split)
 
-	outliner(left)
-	inspector(right)
-	console(bottom)
-	ui.push_rect(&ctx, view, {16, 16, 20, 255})
+	if project == "" {
+		project_manager(screen)
+	} else {
+		editor_layout(screen)
+	}
 
 	ui.end(&ctx)
 
@@ -128,12 +110,29 @@ step :: proc() -> bool {
 	return true
 }
 
+editor_layout :: proc(screen: ui.Rect) {
+	if .Left_Control in platform_api.keys_down() {
+		switch {
+		case .S in ctx.keys: save()
+		case .Z in ctx.keys: undo(&level)
+		case .Y in ctx.keys: redo(&level)
+		}
+	}
+
+	left, rest := ui.split(&ctx, "left split", screen, .Row, &left_split)
+	center, right := ui.split(&ctx, "right split", rest, .Row, &right_split)
+	view, bottom := ui.split(&ctx, "bottom split", center, .Column, &bottom_split)
+
+	outliner(left)
+	inspector(right)
+	console(bottom)
+	ui.push_rect(&ctx, view, {16, 16, 20, 255})
+}
+
 shutdown :: proc() {
 	ui.destroy(&ctx)
 	platform_api.unload_font(font)
-	unload_level(&level)
-	delete(collections)
-	reload.close_game(&game)
+	close_project()
 	platform_api.shutdown()
 }
 
